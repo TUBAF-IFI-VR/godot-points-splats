@@ -1,0 +1,20 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dtps2s7asnnls"]
+
+[ext_resource type="Shader" uid="uid://bwv5b0o3qsbos" path="res://potree/basic_point.gdshader" id="1_eb61y"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_eb61y")
+shader_parameter/point_size = 0.20000000880148
+shader_parameter/distance_attenuation = 0.30000001425
+shader_parameter/min_point_size = 0.01
+shader_parameter/max_point_size = 2.0
+shader_parameter/use_vertex_color = true
+shader_parameter/point_color = Color(1, 1, 1, 1)
+shader_parameter/lod_distance = 100.0
+shader_parameter/opacity_falloff = 0.5
+shader_parameter/use_intensity = true
+shader_parameter/intensity_min = 0.0
+shader_parameter/intensity_max = 1.0
+shader_parameter/intensity_color_min = Color(0, 0, 1, 1)
+shader_parameter/intensity_color_max = Color(1, 0, 0, 1)

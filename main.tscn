@@ -1,0 +1,57 @@
+[gd_scene format=3 uid="uid://claby38o5j0mx"]
+
+[ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree.gd" id="1_ig7tw"]
+[ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
+size = Vector2(5, 5)
+orientation = 1
+
+[node name="Main" type="Node3D" unique_id=184997138]
+script = ExtResource("1_h2yge")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=387857699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 4.6821747)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1670623921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+mesh = SubResource("QuadMesh_ig7tw")
+
+[node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=1057501747]
+
+[node name="Octree" type="Node3D" parent="." unique_id=278494610]
+script = ExtResource("1_ig7tw")
+octree_path = "res://lion_takanawa"
+point_size = 18.0
+metadata/_custom_type_script = "uid://cro8443uj6dch"
+
+[node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
+offset_right = 240.0
+offset_bottom = 160.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=611320019]
+layout_mode = 2
+
+[node name="LabelPointSize" type="Label" parent="Panel/VBoxContainer" unique_id=208281412]
+layout_mode = 2
+text = "Point Size:"
+
+[node name="HBoxPointSize" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=187394094]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=1258691268]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2.0
+step = 2.0
+value = 20.0
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=187009120]
+layout_mode = 2
+text = "0 mm"
+
+[connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
