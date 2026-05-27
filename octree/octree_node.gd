@@ -69,7 +69,7 @@ func _ready() -> void:
 	# Create a new bounding box mesh and scale it to the current nodes AABB
 	var box = BoxMesh.new()
 	box.size = Vector3(1,1,1)
-	box.material = load("res://potree/octree_box.tres")
+	box.material = load("res://octree/octree_box.tres")
 	var inst = MeshInstance3D.new()
 	inst.scale = aabb.size
 	#inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scaling - octree_data.aabb.size*0.5

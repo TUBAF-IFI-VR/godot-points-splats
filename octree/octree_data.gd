@@ -28,5 +28,5 @@ var attributes = {
 enum RenderMode {POINT=0, QUAD}
 
 var render_mode : RenderMode = RenderMode.QUAD
-var point_material = preload("res://potree/basic_point.tres")
-var quad_material = preload("res://potree/basic_quad.tres")
+var point_material = preload("res://octree/basic_point.tres")
+var quad_material = preload("res://octree/basic_quad.tres")

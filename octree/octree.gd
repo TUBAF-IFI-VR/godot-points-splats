@@ -35,10 +35,10 @@ func _ready() -> void:
 	# DEBUG:
 	var hrc_data = analyze_hrc(octree_path + "/data/r/r.hrc")
 	for n in hrc_data:
-		var str = "%5s | %8d | " % [n["name"], n["points"]]
+		var output = "%5s | %8d | " % [n["name"], n["points"]]
 		for i in range(8):
-			str += "1" if n["mask"] & (1<<i) else "0"
-		print(str)
+			output += "1" if n["mask"] & (1<<i) else "0"
+		print(output)
 
 # Load a octree from its root path
 func load_potree(base_path:String) -> bool:
