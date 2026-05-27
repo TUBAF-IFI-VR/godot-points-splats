@@ -1,8 +1,9 @@
 [gd_scene format=3 uid="uid://claby38o5j0mx"]
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
-[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
 size = Vector2(5, 5)
@@ -13,10 +14,15 @@ script = ExtResource("1_h2yge")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=387857699]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 4.6821747)
+script = ExtResource("2_1bvp3")
+move_speed = 0.1
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1670623921]
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=1670623921]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 mesh = SubResource("QuadMesh_ig7tw")
+
+[node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=1057501747]
 
@@ -25,9 +31,6 @@ script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa"
 point_size = 18.0
 metadata/_custom_type_script = "uid://cro8443uj6dch"
-
-[node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
 offset_right = 240.0
