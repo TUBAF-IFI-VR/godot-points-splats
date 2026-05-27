@@ -1,6 +1,10 @@
 extends Node3D
 
-# Main class used to load the a potree project
+## Main class used to load the a potree project (first prototype).
+##
+## This first experimental class is only kept as a reference so far.
+##
+## @deprecated: Use [Octree], [OctreeData] and [OctreeNode] instead!
 class_name PotreeData
 
 # Data structure for a single node in the hierarchy
@@ -27,7 +31,7 @@ var attributes = {
 	"class"  : false
 }
 var point_bytes = 3*4
-var point_material = preload("res://potree/basic_point.tres")
+var point_material = preload("res://octree/basic_point.tres")
 
 
 var bb_min : Vector3
@@ -108,6 +112,8 @@ func _load_pointcloud(node:PotreeNode) -> void:
 		push_error("Failed to open file: "+node.binary_file_path)
 		return
 	
+	# For the following line, integer division is desired
+	@warning_ignore("integer_division")
 	var point_count = int(file.get_length()/point_bytes)
 	node.points = PackedVector3Array()
 	node.points.resize(point_count)
@@ -249,14 +255,14 @@ func create_box(id:int):
 	var z = 1 if id&2 else -1
 	var y = 1 if id&4 else -1
 	
-	var scale = bb_max-bb_min
+	var new_scale = bb_max-bb_min
 	
 	var box = BoxMesh.new()
 	box.size = Vector3(0.5,0.5,0.5)
-	box.material = load("res://potree/octree_box.tres")
+	box.material = load("res://octree/octree_box.tres")
 	var inst = MeshInstance3D.new()
-	inst.scale = scale
-	inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scale + bb_min
+	inst.scale = new_scale
+	inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * new_scale + bb_min
 	inst.mesh = box
 	inst.visibility_range_end = 3.0;
 	add_child(inst)
@@ -265,7 +271,7 @@ func read_hrc(filename:String):
 	var file = FileAccess.open(filename, FileAccess.READ)
 	
 	var node_mask = file.get_8()
-	var point_count = file.get_32()
+	var _point_count = file.get_32()
 	for i in range(8):
 		if node_mask & (1<<i):
 			create_box(i)
