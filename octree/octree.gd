@@ -1,3 +1,4 @@
+@tool
 extends Node3D
 
 ## Main class for octree data structures.
@@ -46,15 +47,18 @@ func _ready() -> void:
 	add_child(root)
 	
 func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	
 	if len(loading_queue) > 0:
 		var c : OctreeNode = loading_queue.pop_front()
 		data_loader.load_pointdata(c)
 		c.create_multimesh()
 	
 ## Add child to the loading queue
-func request_subnode(childnode:OctreeNode):
+func request_subnode(childnode:OctreeNode) -> void:
 	loading_queue.push_back(childnode)
 	
 ## Remove a child from the loading queue
-func defer_subnode(childnode:OctreeNode):
+func defer_subnode(childnode:OctreeNode) -> void:
 	loading_queue.erase(childnode)
