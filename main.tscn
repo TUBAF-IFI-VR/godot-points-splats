@@ -28,7 +28,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="Octree" type="Node3D" parent="." unique_id=278494610]
 script = ExtResource("1_ig7tw")
-octree_path = "res://lion_takanawa"
+octree_path = "res://lion_takanawa/cloud.js"
 point_size = 18.0
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
