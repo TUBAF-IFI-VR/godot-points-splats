@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://14s4tmmpwr7k"]
+
+[ext_resource type="Script" uid="uid://dsr1dunub6ysk" path="res://xr/scripts/teleport_ray_cast.gd" id="1_7m8vp"]
+[ext_resource type="Material" uid="uid://wbb00s06vn3c" path="res://xr/materials/teleport_ray_cast.tres" id="1_s44ad"]
+[ext_resource type="Material" uid="uid://bwgi8w667e2lp" path="res://xr/materials/teleport_ring_inner.tres" id="2_rg5mm"]
+[ext_resource type="ArrayMesh" uid="uid://d08e8gf10w674" path="res://xr/meshes/teleport_ring.obj" id="2_w6vgb"]
+[ext_resource type="Material" uid="uid://b2as4jqunt15o" path="res://xr/materials/teleport_ring_outer.tres" id="5_tgifd"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_nsfat"]
+material = ExtResource("1_s44ad")
+top_radius = 0.01
+bottom_radius = 0.01
+height = 3.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_3e6vw"]
+material = ExtResource("2_rg5mm")
+height = 0.03
+
+[node name="TeleportRayCast" type="RayCast3D"]
+enabled = false
+target_position = Vector3(0, 0, -3)
+hit_back_faces = false
+script = ExtResource("1_7m8vp")
+
+[node name="RayCastMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, -1.5)
+mesh = SubResource("CylinderMesh_nsfat")
+
+[node name="TeleportMarker" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+top_level = true
+cast_shadow = 0
+mesh = SubResource("CylinderMesh_3e6vw")
+skeleton = NodePath("../RayCastMesh")
+
+[node name="TeleportRing" type="MeshInstance3D" parent="TeleportMarker"]
+cast_shadow = 0
+mesh = ExtResource("2_w6vgb")
+skeleton = NodePath("../..")
+surface_material_override/0 = ExtResource("5_tgifd")

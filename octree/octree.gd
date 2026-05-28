@@ -1,5 +1,5 @@
 @tool
-extends Node3D
+extends StaticBody3D
 
 ## Main class for octree data structures.
 class_name Octree
@@ -43,6 +43,13 @@ func _ready() -> void:
 	data_loader.load_hierarchy(root)
 	data_loader.load_pointdata(root)
 	root.create_multimesh()
+	
+	self.set_collision_layer_value(1,false)
+	self.set_collision_layer_value(17,true)
+	var collision = CollisionShape3D.new()
+	collision.shape = BoxShape3D.new()
+	collision.shape.size = root.aabb.size
+	add_child(collision)
 	
 	add_child(root)
 	

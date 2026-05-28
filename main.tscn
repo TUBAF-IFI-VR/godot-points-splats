@@ -1,38 +1,62 @@
 [gd_scene format=3 uid="uid://claby38o5j0mx"]
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
-[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
-[ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="3_272bh"]
+[ext_resource type="Script" uid="uid://d0sj7xpn5nrd2" path="res://xr/start_xr.gd" id="4_1bvp3"]
+[ext_resource type="Script" uid="uid://b87dusots1o44" path="res://xr/scripts/xrcontroller.gd" id="4_272bh"]
+[ext_resource type="PackedScene" uid="uid://bbfj2v625ku8h" path="res://xr/meshes/controller_right.glb" id="5_5vw27"]
+[ext_resource type="PackedScene" uid="uid://14s4tmmpwr7k" path="res://xr/teleport_ray_cast.tscn" id="6_kek77"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1bvp3"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_lquwl"]
+sky_material = SubResource("ProceduralSkyMaterial_1bvp3")
+
+[sub_resource type="Environment" id="Environment_7mycd"]
+background_mode = 2
+sky = SubResource("Sky_lquwl")
+tonemap_mode = 2
+glow_enabled = true
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
 size = Vector2(5, 5)
 orientation = 1
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_272bh"]
+size = Vector3(20, 0.1, 20)
+
 [node name="Main" type="Node3D" unique_id=184997138]
 script = ExtResource("1_h2yge")
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=387857699]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 4.6821747)
-script = ExtResource("2_1bvp3")
-move_speed = 0.1
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1488354675]
+environment = SubResource("Environment_7mycd")
 
 [node name="Floor" type="MeshInstance3D" parent="." unique_id=1670623921]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 mesh = SubResource("QuadMesh_ig7tw")
 
+[node name="StaticBody3D" type="StaticBody3D" parent="Floor" unique_id=133486601]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor/StaticBody3D" unique_id=790594564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+shape = SubResource("BoxShape3D_272bh")
+
 [node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=1057501747]
-
-[node name="Octree" type="Node3D" parent="." unique_id=278494610]
-script = ExtResource("1_ig7tw")
+[node name="Octree" type="StaticBody3D" parent="." unique_id=671132194]
+collision_layer = 65536
+script = ExtResource("3_272bh")
 octree_path = "res://lion_takanawa/cloud.js"
 point_size = 18.0
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
+visible = false
 offset_right = 240.0
 offset_bottom = 160.0
 
@@ -57,4 +81,29 @@ value = 20.0
 layout_mode = 2
 text = "0 mm"
 
+[node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1569270787]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -7)
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D" unique_id=1960474157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+
+[node name="XRController3D" type="XRController3D" parent="XROrigin3D" unique_id=1311821130]
+tracker = &"right_hand"
+script = ExtResource("4_272bh")
+
+[node name="controller_right" parent="XROrigin3D/XRController3D" unique_id=2018965782 instance=ExtResource("5_5vw27")]
+
+[node name="TeleportRayCast" parent="XROrigin3D/XRController3D" unique_id=222988525 instance=ExtResource("6_kek77")]
+target_position = Vector3(0, 0, -6)
+
+[node name="GrabRaycast" type="RayCast3D" parent="XROrigin3D/XRController3D" unique_id=1316598147]
+target_position = Vector3(0, 0, -6)
+collision_mask = 65536
+hit_from_inside = true
+
+[node name="StartXR" type="Node" parent="." unique_id=1981562116]
+script = ExtResource("4_1bvp3")
+
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
+[connection signal="button_pressed" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_pressed"]
+[connection signal="button_released" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_released"]
