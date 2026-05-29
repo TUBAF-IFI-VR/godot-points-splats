@@ -13,6 +13,7 @@ func _physics_process(_delta) -> void:
 		$RayCastMesh.visible = true
 	else:
 		$RayCastMesh.visible = false
+		$TeleportMarker.visible = false
 		return
 	
 	# Show the target circle only if a valid position has been hit
