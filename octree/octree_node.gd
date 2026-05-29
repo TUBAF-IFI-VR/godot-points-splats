@@ -26,6 +26,9 @@ var path : String = ""
 ## Visual point cloud representation
 var visual : GeometryInstance3D = null
 
+var initial_visibility_range: float
+var visibility_margin: float = 0.5
+
 # Child nodes and child nodes queued for loading on demand
 # TODO: loading on demand and threaded (delayed) loading of deeper nodes
 # TODO: improve loading queue approach? (currently per node queue and global queue in [Octree])
@@ -44,6 +47,7 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 # Setup the node when entering the scene tree
 func _ready() -> void:
 	# TODO: replace code to load all children with a dynamic approach depending on visibility!
+	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 	# TODO: load children in a breadth-first approach!
 	while len(loading_queue) > 0:
 		var c = loading_queue.pop_front()
@@ -101,6 +105,7 @@ func create_multimesh() -> void:
 		visual.multimesh = multimesh
 		visual.material_override = octree_data.quad_material
 		add_child(visual)
+		_apply_visibility_range(visual, id.length()-1)
 	
 	# DEBUG: render just bare points
 	else:
@@ -117,3 +122,18 @@ func create_multimesh() -> void:
 		visual = MeshInstance3D.new()
 		visual.mesh = mesh
 		add_child(visual)
+
+func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
+	var visibility_range_end = _get_range_end_from_level(level)
+	instance.visibility_range_end = visibility_range_end
+	instance.visibility_range_end_margin = visibility_margin
+	
+func _get_range_end_from_level(level: int) -> float:
+	if level == 0:
+		return 0.0
+	return initial_visibility_range / pow(2.0, level - 1)
+
+func _on_visibility_range_value_changed(value: float) -> void:
+	initial_visibility_range = value
+	if visual != null:
+		_apply_visibility_range(visual, id.length()-1)

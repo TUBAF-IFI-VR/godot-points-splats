@@ -30,6 +30,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
 point_size = 18.0
+initial_visibility_range = 8.0
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
@@ -57,4 +58,22 @@ value = 20.0
 layout_mode = 2
 text = "0 mm"
 
+[node name="LabelvisibilityRange" type="Label" parent="Panel/VBoxContainer" unique_id=510482021]
+layout_mode = 2
+text = "Initial visibility range:"
+
+[node name="HBoxVisibilityRange" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=736838258]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=243475262]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2.0
+step = 2.0
+value = 20.0
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=1294363447]
+layout_mode = 2
+
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
+[connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]

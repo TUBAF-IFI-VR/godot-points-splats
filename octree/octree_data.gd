@@ -44,3 +44,11 @@ signal request_subnode(childnode:OctreeNode)
 ## Defer loading of a subnode by removing it from the queue
 @warning_ignore("unused_signal")
 signal defer_subnode(childnode:OctreeNode)
+## Change the initial visibility range end
+@warning_ignore("unused_signal")
+signal visibility_range_changed(value: float)
+
+var initial_visibility_range:
+	set(value):
+		initial_visibility_range = value
+		visibility_range_changed.emit(value)
