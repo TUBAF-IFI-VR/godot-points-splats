@@ -26,7 +26,6 @@ var path : String = ""
 ## Visual point cloud representation
 var visual : GeometryInstance3D = null
 
-var initial_visibility_range: float
 var visibility_margin: float = 0.5
 
 # Child nodes and child nodes queued for loading on demand
@@ -43,21 +42,32 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 	
 	self.id = p_id
 	self.aabb = p_aabb
+	self.depth = p_id.length() - 1
 	
 # Setup the node when entering the scene tree
 func _ready() -> void:
 	# TODO: replace code to load all children with a dynamic approach depending on visibility!
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 	# TODO: load children in a breadth-first approach!
-	while len(loading_queue) > 0:
-		var c = loading_queue.pop_front()
-		octree_data.request_subnode.emit(c)
-	
+
+	#if _is_within_visibility_range():
+		#while len(loading_queue) > 0:
+			#var c = loading_queue.pop_front()
+			#octree_data.request_subnode.emit(c)
 	#if id == "":
 	#	self.visibility_range_end = 15.0;
 	
 	_create_bbox()
 	
+func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+
+	for child in loading_queue.duplicate():
+		if child._is_within_visibility_range():
+			loading_queue.erase(child)
+			octree_data.request_subnode.emit(child)
+			
 ## Create a new bounding box mesh and scale it to the current nodes AABB
 func _create_bbox():
 	var box = BoxMesh.new()
@@ -105,7 +115,7 @@ func create_multimesh() -> void:
 		visual.multimesh = multimesh
 		visual.material_override = octree_data.quad_material
 		add_child(visual)
-		_apply_visibility_range(visual, id.length()-1)
+		_apply_visibility_range(visual, depth)
 	
 	# DEBUG: render just bare points
 	else:
@@ -131,9 +141,23 @@ func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
 func _get_range_end_from_level(level: int) -> float:
 	if level == 0:
 		return 0.0
-	return initial_visibility_range / pow(2.0, level - 1)
+	return octree_data.initial_visibility_range / pow(2.0, level - 1)
 
 func _on_visibility_range_value_changed(value: float) -> void:
-	initial_visibility_range = value
 	if visual != null:
-		_apply_visibility_range(visual, id.length()-1)
+		_apply_visibility_range(visual, depth)
+		
+func _is_within_visibility_range() -> bool:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return false
+
+	var range_end := _get_range_end_from_level(depth)
+
+	if range_end <= 0.0:
+		return true
+
+	var node_center := aabb.get_center()
+	var distance := camera.global_position.distance_to(node_center)
+
+	return distance <= range_end + visibility_margin
