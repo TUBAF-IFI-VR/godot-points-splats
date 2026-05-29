@@ -8,6 +8,7 @@ extends XRController3D
 var use_ar = false
 var is_grabbing = false
 var grabbed_object : Node3D = null
+var grabbed_dist = 0.0
 var last_position = Vector3(0,0,0)
 
 ## Enable and disable the teleport tool
@@ -87,7 +88,11 @@ func _on_button_pressed(button_name:String) -> void:
 		if $GrabRaycast.is_colliding():
 			is_grabbing = true
 			grabbed_object = $GrabRaycast.get_collider()
+			grabbed_dist = ($GrabRaycast.get_collision_point()-self.global_position).length()
 			last_position = self.global_position
+	elif button_name == "primary_click":
+		if grabbed_object:
+			grabbed_object.scale = Vector3(1,1,1)
 
 func _on_button_released(button_name:String) -> void:
 	if button_name == "trigger_click":
@@ -96,9 +101,19 @@ func _on_button_released(button_name:String) -> void:
 		is_grabbing = false
 		grabbed_object = null
 		
-func _physics_process(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if is_grabbing and grabbed_object != null:
 		var dist = self.global_position - last_position
+		dist *= pow(1.5, max(0.0, grabbed_dist))
 		grabbed_object.global_translate(dist)
 		last_position = self.global_position
+		
+		var obj_scale = self.get_vector2("primary").y
+		var obj_rotate = self.get_vector2("primary").x
+		if abs(obj_scale) > 0.8:
+			obj_scale *= 0.005
+			var target_scale = clamp(grabbed_object.scale.y+obj_scale,0.05,100.0)
+			grabbed_object.scale = Vector3(target_scale,target_scale,target_scale)
+		if abs(obj_rotate) > 0.1:
+			grabbed_object.rotate_y(0.02*obj_rotate)
 		
