@@ -45,8 +45,9 @@ func load_metadata(filename:String) -> OctreeData:
 		if a == "INTENSITY":
 			octree_data.attributes["intensity"] = true
 			octree_data.point_bytes += 4
-		elif a == "NORMAL_SPHEREMAPPED":
+		elif a == "NORMAL_SPHEREMAPPED" or a == "NORMAL_OCT16":
 			octree_data.attributes["normal"] = true
+			octree_data.normal_encoding = a
 			octree_data.point_bytes += 2
 			
 	# For debugging
@@ -64,15 +65,17 @@ func load_metadata(filename:String) -> OctreeData:
 	# TODO: check for errors
 	
 	# DEBUG:
-	var hrc_file = octree_data.base_path + "/data/r/r.hrc"
-	var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
-	print("Analyzing hierarchy file '%s'" % hrc_file)
-	print("--------------------")
-	for n in hrc_data:
-		var output = "%5s | %8d | " % [n["name"], n["points"]]
-		for i in range(8):
-			output += "1" if n["mask"] & (1<<i) else "0"
-		print(output)
+	#var hrc_file = octree_data.base_path + "/data/r/r.hrc"
+	#var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
+	#print("Analyzing hierarchy file '%s'" % hrc_file)
+	#print("--------------------")
+	#for n in hrc_data:
+		#if len(n["name"]) < 6:
+			#continue
+		#var output = "%5s | %8d | " % [n["name"], n["points"]]
+		#for i in range(8):
+			#output += "1" if n["mask"] & (1<<i) else "0"
+		#print(output)
 	
 	#root = _load_hierarchy(base_path + metadata["octreeDir"])
 	return octree_data
@@ -87,6 +90,7 @@ func load_hierarchy(node:OctreeNode) -> bool:
 	
 	# We are the root node of the new branch
 	var next_nodes = [node]
+	var sum_points = 0
 
 	# Walk through the hrc file and push necessary subnodes into the queue
 	while !file.eof_reached() and len(next_nodes) > 0:
@@ -96,32 +100,48 @@ func load_hierarchy(node:OctreeNode) -> bool:
 		var base_aabb = current.aabb
 		base_aabb.size *= 0.5
 		
+		sum_points += point_count
+		
+		#if len(current.id) > 3:
+		#	continue
+		
 		# Check the node mask and spawn necessary subnodes as children
 		for i in range(8):
 			if node_mask & (1<<i):
 				var child_index = current.id+str(i)
-				if len(child_index) <= node.octree_data.step_size:
-					var child_aabb = base_aabb
-					
-					# Determine the correct octant
-					var y = 1 if i&1 else -1
-					var z = 1 if i&2 else -1
-					var x = 1 if i&4 else -1
-					
-					# Spawn the new child node and adjust its position
-					child_aabb.position = Vector3(0,0,0)#+= base_aabb.size*Vector3(x,y,z)
-					var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
-					child.position = base_aabb.size*Vector3(x,y,z)*0.5
-					current.children[i] = child
-					current.loading_queue.push_back(child)
-					current.add_child(child)
-					next_nodes.push_back(child)
+				var step = len(child_index)-1
+				var child_aabb = base_aabb
+
+				
+				# Determine the correct octant
+				var y = 1 if i&1 else -1
+				var z = 1 if i&2 else -1
+				var x = 1 if i&4 else -1
+				
+				# Spawn the new child node and adjust its position
+				child_aabb.position = Vector3(0,0,0)#+= base_aabb.size*Vector3(x,y,z)
+				var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
+				
+				# TODO: Load hrc files of deeper branches. This is just a temporary fix!
+				if step == node.octree_data.step_size:
+					child.path = child.path.left(current.path.rfind("/")) + "/" + child.id.right(-1) + "/" + child_index
+				elif step > node.octree_data.step_size:
+					child.path = current.path.left(current.path.rfind("/")) + "/" + child_index
+				
+				child.position = base_aabb.size*Vector3(x,y,z)*0.5
+				current.children[i] = child
+				current.loading_queue.push_back(child)
+				current.add_child(child)
+				next_nodes.push_back(child)
 	
 	file.close()
+	
+	print("Parsed hierarchy file '%s' with %d points in total." % [filename,sum_points])
+	
 	return true
 	
 ## Convert the 2 byte integer representation into a correct normal vector.
-func _decode_normal(x:int, y:int) -> Vector3:
+func _decode_normal_sphere(x:int, y:int) -> Vector3:
 	# Based on Potree BinaryDecoderWorker
 	# https://github.com/potree/potree/blob/develop/src/workers/BinaryDecoderWorker.js
 	var nx = (x / 255.0) * 2.0 - 1.0;
@@ -139,6 +159,23 @@ func _decode_normal(x:int, y:int) -> Vector3:
 	nz = nz * 2 - 1;
 	
 	return Vector3(nx,nz,ny).normalized()
+	
+func _decode_normal_oct16(bx:int, by:int) -> Vector3:
+	var u = (bx / 255.0) * 2.0 - 1.0
+	var v = (by / 255.0) * 2.0 - 1.0
+
+	var z = 1.0 - abs(u) - abs(v)
+	var x = 0.0
+	var y = 0.0
+	
+	if z >= 0.0:
+		x = u
+		y = v
+	else:
+		x = -(v / sign(v) - 1.0) / sign(u)
+		y = -(u / sign(u) - 1.0) / sign(v)
+	
+	return Vector3(x,z,y).normalized()
 
 ## Load the actual point cloud data and store in a single node.
 func load_pointdata(node:OctreeNode) -> bool:
@@ -150,6 +187,8 @@ func load_pointdata(node:OctreeNode) -> bool:
 	if not file:
 		push_error("Failed to open point cloud data file: "+filename)
 		return false
+		
+	print("Loading %s" % node.id)
 	
 	# For the following line, integer division is desired
 	@warning_ignore("integer_division")
@@ -201,7 +240,10 @@ func load_pointdata(node:OctreeNode) -> bool:
 			file.get_8()
 		# Read the normal vector if present
 		if node.octree_data.attributes["normal"]:
-			node.normals[i] = _decode_normal(file.get_8(), file.get_8())
+			if node.octree_data.normal_encoding == "NORMAL_OCT16":
+				node.normals[i] = _decode_normal_oct16(file.get_8(), file.get_8())
+			else:
+				node.normals[i] = _decode_normal_sphere(file.get_8(), file.get_8())
 	
 	# Check if all bytes have been read to validate the data
 	# There usually is a single 0 byte at the end
@@ -212,11 +254,11 @@ func load_pointdata(node:OctreeNode) -> bool:
 		extra_bytes += 1
 	
 	# DEBUG: print validation result
-	print("Loaded %d points!" % node.points.size())
-	if extra_bytes == 1 and last_byte == 0:
-		print("Binary file is valid.")
-	else:
-		print("Invalid binary file size?")
+	#print("Loaded %d points!" % node.points.size())
+	#if extra_bytes == 1 and last_byte == 0:
+		#print("Binary file is valid.")
+	#else:
+		#print("Invalid binary file size?")
 	
 	file.close()
 	return true

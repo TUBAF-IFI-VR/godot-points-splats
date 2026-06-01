@@ -29,6 +29,9 @@ var attributes = {
 	"class"  : false
 }
 
+## We support different normal vector encodings
+var normal_encoding : String = ""
+
 # A basic point shaded and a quad based rendering for blending effects (just a prototype)
 enum RenderMode {POINT=0, QUAD}
 
