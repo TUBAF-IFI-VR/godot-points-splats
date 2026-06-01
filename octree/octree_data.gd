@@ -47,8 +47,11 @@ signal defer_subnode(childnode:OctreeNode)
 ## Change the initial visibility range end
 @warning_ignore("unused_signal")
 signal visibility_range_changed(value: float)
+var _initial_visibility_range: float = 8.0
 
-var initial_visibility_range:
+var initial_visibility_range: float:
+	get:
+		return _initial_visibility_range
 	set(value):
-		initial_visibility_range = value
+		_initial_visibility_range = value
 		visibility_range_changed.emit(value)
