@@ -26,7 +26,7 @@ var path : String = ""
 ## Visual point cloud representation
 var visual : GeometryInstance3D = null
 
-var visibility_margin: float = 0.5
+var visibility_margin: float = 1.0
 
 # Child nodes and child nodes queued for loading on demand
 # TODO: loading on demand and threaded (delayed) loading of deeper nodes
@@ -46,7 +46,6 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 	
 # Setup the node when entering the scene tree
 func _ready() -> void:
-	# TODO: replace code to load all children with a dynamic approach depending on visibility!
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 	# TODO: load children in a breadth-first approach!
 	
@@ -55,10 +54,14 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-
-	set_process(self._is_within_visibility_range())
+		
+	#set_process(_is_within_visibility_range())
+	if visual != null and depth > 0:
+		visual.visible = _is_important_enough_to_load()
+		
+	## Load only the visible children
 	for child in loading_queue.duplicate():
-		if child._is_within_visibility_range():
+		if child._is_within_visibility_range() and _is_important_enough_to_load():
 			loading_queue.erase(child)
 			octree_data.request_subnode.emit(child)
 			
@@ -169,6 +172,7 @@ func _get_projected_size(camera: Camera3D) -> float:
 func _is_important_enough_to_load() -> bool:
 	if get_viewport() == null:
 		return false
+		
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return false
@@ -176,6 +180,6 @@ func _is_important_enough_to_load() -> bool:
 	var projected_size := _get_projected_size(camera)
 	
 	# TODO: min projected size depends on number of points
-	var min_projected_size := 500.0
+	var min_projected_size := 50.0
 
 	return projected_size >= min_projected_size
