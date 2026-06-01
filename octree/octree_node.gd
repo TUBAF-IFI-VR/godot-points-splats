@@ -49,13 +49,6 @@ func _ready() -> void:
 	# TODO: replace code to load all children with a dynamic approach depending on visibility!
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 	# TODO: load children in a breadth-first approach!
-
-	#if _is_within_visibility_range():
-		#while len(loading_queue) > 0:
-			#var c = loading_queue.pop_front()
-			#octree_data.request_subnode.emit(c)
-	#if id == "":
-	#	self.visibility_range_end = 15.0;
 	
 	_create_bbox()
 	
@@ -63,6 +56,7 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 
+	set_process(self._is_within_visibility_range())
 	for child in loading_queue.duplicate():
 		if child._is_within_visibility_range():
 			loading_queue.erase(child)
@@ -143,7 +137,7 @@ func _get_range_end_from_level(level: int) -> float:
 		return 0.0
 	return octree_data.initial_visibility_range / pow(2.0, level - 1)
 
-func _on_visibility_range_value_changed(value: float) -> void:
+func _on_visibility_range_value_changed(_value: float) -> void:
 	if visual != null:
 		_apply_visibility_range(visual, depth)
 		
@@ -161,3 +155,27 @@ func _is_within_visibility_range() -> bool:
 	var distance := camera.global_position.distance_to(node_center)
 
 	return distance <= range_end + visibility_margin
+
+func _get_projected_size(camera: Camera3D) -> float:
+	var distance := camera.global_position.distance_to(aabb.get_center())
+	var radius := aabb.size.length() * 0.5
+	var fov_rad := deg_to_rad(camera.fov)
+	var slope = tan(fov_rad* 0.5)
+	var screen_height := get_viewport().get_visible_rect().size.y
+	
+	return screen_height * radius / (slope * distance)
+
+	
+func _is_important_enough_to_load() -> bool:
+	if get_viewport() == null:
+		return false
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return false
+
+	var projected_size := _get_projected_size(camera)
+	
+	# TODO: min projected size depends on number of points
+	var min_projected_size := 500.0
+
+	return projected_size >= min_projected_size
