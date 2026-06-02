@@ -65,78 +65,110 @@ func load_metadata(filename:String) -> OctreeData:
 	# TODO: check for errors
 	
 	# DEBUG:
-	#var hrc_file = octree_data.base_path + "/data/r/r.hrc"
-	#var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
-	#print("Analyzing hierarchy file '%s'" % hrc_file)
-	#print("--------------------")
-	#for n in hrc_data:
-		#if len(n["name"]) < 6:
-			#continue
-		#var output = "%5s | %8d | " % [n["name"], n["points"]]
-		#for i in range(8):
-			#output += "1" if n["mask"] & (1<<i) else "0"
-		#print(output)
+	var hrc_file = octree_data.base_path + "/data/r/r.hrc"
+	var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
+	var hrc_output = FileAccess.open("hrc_analysis.txt",FileAccess.WRITE)
+	print("Analyzing hierarchy file '%s'" % hrc_file)
+	print("--------------------")
+	for n in hrc_data:
+		var output = "%5s | %8d | " % [n["name"], n["points"]]
+		for i in range(8):
+			output += "1" if n["mask"] & (1<<i) else "0"
+		hrc_output.store_line(output)
+	hrc_output.close()
 	
 	#root = _load_hierarchy(base_path + metadata["octreeDir"])
 	return octree_data
 
 ## Load a subfile that describes the hierarchy of a new branch (or the root).
 func load_hierarchy(node:OctreeNode) -> bool:
-	var filename = node.path+".hrc"
-	var file = FileAccess.open(filename, FileAccess.READ)
-	if not file:
-		push_error("Failed to open hierarchy file: "+filename)
-		return false
-	
-	# We are the root node of the new branch
-	var next_nodes = [node]
+	# We start with the main hrc file and may have to traverse the tree for
+	# additional ones
+	var hrc_files = [[node,1]]
+	var hrc_count = 0
 	var sum_points = 0
-
-	# Walk through the hrc file and push necessary subnodes into the queue
-	while !file.eof_reached() and len(next_nodes) > 0:
-		var current : OctreeNode = next_nodes.pop_front()
-		var node_mask = file.get_8()
-		var point_count = file.get_32()
-		var base_aabb = current.aabb
-		base_aabb.size *= 0.5
-		
-		sum_points += point_count
-		
-		#if len(current.id) > 3:
-		#	continue
-		
-		# Check the node mask and spawn necessary subnodes as children
-		for i in range(8):
-			if node_mask & (1<<i):
-				var child_index = current.id+str(i)
-				var step = len(child_index)-1
-				var child_aabb = base_aabb
-
-				
-				# Determine the correct octant
-				var y = 1 if i&1 else -1
-				var z = 1 if i&2 else -1
-				var x = 1 if i&4 else -1
-				
-				# Spawn the new child node and adjust its position
-				child_aabb.position = Vector3(0,0,0)#+= base_aabb.size*Vector3(x,y,z)
-				var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
-				
-				# TODO: Load hrc files of deeper branches. This is just a temporary fix!
-				if step == node.octree_data.step_size:
-					child.path = child.path.left(current.path.rfind("/")) + "/" + child.id.right(-1) + "/" + child_index
-				elif step > node.octree_data.step_size:
-					child.path = current.path.left(current.path.rfind("/")) + "/" + child_index
-				
-				child.position = base_aabb.size*Vector3(x,y,z)*0.5
-				current.children[i] = child
-				current.loading_queue.push_back(child)
-				current.add_child(child)
-				next_nodes.push_back(child)
 	
-	file.close()
+	# We may have to repeat hrc parsing for deeper branches
+	while len(hrc_files) > 0:
+		var hrc = hrc_files.pop_front()
+		var root = hrc[0]
+		var step = hrc[1]
+		
+		var filename = root.path+".hrc"
+		var file = FileAccess.open(filename, FileAccess.READ)
+		if not file:
+			push_error("Failed to open hierarchy file: "+filename)
+			return false
+		
 	
-	print("Parsed hierarchy file '%s' with %d points in total." % [filename,sum_points])
+		# We start with the root node of the new branch
+		var next_nodes = [root]
+		var hrc_points = 0
+		var step_size = node.octree_data.step_size
+
+		# Walk through the hrc file and push necessary subnodes into the queue
+		while len(next_nodes) > 0:
+			if file.eof_reached():
+				print("Error: reached end of hrc file before all nodes have been read!")
+				break
+			var current : OctreeNode = next_nodes.pop_front()
+			
+			var node_mask = file.get_8()
+			var point_count = file.get_32()
+			var base_aabb = current.aabb
+			base_aabb.size *= 0.5
+			hrc_points += point_count
+			
+			# Check the node mask and spawn necessary subnodes as children
+			for i in range(8):
+				if node_mask & (1<<i):
+					var child_index = current.id+str(i)
+					
+					var child_aabb = base_aabb
+					
+					# Determine the correct octant
+					var y = 1 if i&1 else -1
+					var z = 1 if i&2 else -1
+					var x = 1 if i&4 else -1
+					
+					# Spawn the new child node and adjust its position
+					child_aabb.position = Vector3(0,0,0)#+= base_aabb.size*Vector3(x,y,z)
+					var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
+					#child.depth = current.depth+1
+					
+					# TODO: Load hrc files of deeper branches. This is just a temporary fix!
+					if current.depth+1 == step_size*step:
+						child.path = child.path.left(current.path.rfind("/")) + "/" + child.id.right(-1) + "/" + child_index
+						hrc_files.push_back([child,step+1])
+					if current.depth < step_size*step:
+						next_nodes.push_back(child)
+					
+					child.position = base_aabb.size*Vector3(x,y,z)*0.5
+					current.children[i] = child
+					current.loading_queue.push_back(child)
+					current.add_child(child)
+		
+		var extra_bytes = 0
+		var _last_byte = -1
+		while !file.eof_reached():
+			_last_byte = file.get_8()
+			extra_bytes += 1
+			
+		# Validate the binary file
+		if extra_bytes != 1:
+			push_error("Invalid binary file size in '%s', %d bytes left to read!"%[filename,extra_bytes-1])
+
+		if len(next_nodes) > 0:
+			push_error("Still %d unread nodes left for file '%s'!"%[len(next_nodes),filename])
+		
+		file.close()
+		
+		#print("Parsed hierarchy file '%s' with %d points in total." % [filename,hrc_points])
+		hrc_count += 1
+		sum_points += hrc_points
+		# End of single hrc file parsing
+		
+	print("Finished parsing %d hierarchy files with %d points in total." % [hrc_count,sum_points])
 	
 	return true
 	
@@ -253,12 +285,9 @@ func load_pointdata(node:OctreeNode) -> bool:
 		last_byte = file.get_8()
 		extra_bytes += 1
 	
-	# DEBUG: print validation result
-	#print("Loaded %d points!" % node.points.size())
-	#if extra_bytes == 1 and last_byte == 0:
-		#print("Binary file is valid.")
-	#else:
-		#print("Invalid binary file size?")
+	# Validate the binary file
+	if extra_bytes != 1 or last_byte != 0:
+		push_error("Invalid binary file size in '%s'!"%filename)
 	
 	file.close()
 	return true
@@ -297,7 +326,22 @@ static func analyze_hrc(hrc_path:String) -> Array:
 				if mask & (1 << i):
 					# Construct the childs name with 'r'+parent_id+i
 					var child_name = current + str(i)
-					next_nodes.append(child_name)
+					if len(child_name) <= 6:
+						next_nodes.push_back(child_name)
+	
+	var extra_bytes = 0
+	var _last_byte = -1
+	while !file.eof_reached():
+		_last_byte = file.get_8()
+		extra_bytes += 1
+		
+	# Validate the binary file
+	if extra_bytes != 1:
+		print("Invalid binary file size in '%s', %d bytes left to read!"%[hrc_path,extra_bytes])
+
+	if len(next_nodes) > 0:
+		print("Still %d unread nodes left for file '%s'!"%[len(next_nodes),hrc_path])
+	
 	file.close()
 					
 	return results
