@@ -26,11 +26,17 @@ var aabb : AABB:
 		if octree_data:
 			octree_data.quad_material.set_shader_parameter("point_size", value)
 
-@export_range(1.0,50) var initial_visibility_range : float:
+@export_range(1.0,50) var initial_visibility_range : float = 8.0:
 	set(value):
 		initial_visibility_range = value
 		if octree_data:
 			octree_data.initial_visibility_range = value
+
+@export_range(1.0,50.0) var point_budget : int = 20000:
+	set(value):
+		point_budget = value
+		if octree_data:
+			octree_data.point_budget = value
 			
 func _init() -> void:
 	data_loader = OctreeLoader.get_loader(data_type)
@@ -43,6 +49,7 @@ func _ready() -> void:
 		
 	octree_data = data_loader.load_metadata(octree_path)
 	octree_data.initial_visibility_range = initial_visibility_range
+	octree_data.point_budget = point_budget
 	octree_data.request_subnode.connect(self.request_subnode)
 	octree_data.defer_subnode.connect(self.defer_subnode)
 	
@@ -61,6 +68,9 @@ func _process(_delta: float) -> void:
 		var c : OctreeNode = loading_queue.pop_front()
 		data_loader.load_pointdata(c)
 		c.create_multimesh()
+
+	#if octree_data.is_cache_over_budget() and root != null:
+		#root.unload_invisible_nodes_until_budget()
 	
 ## Add child to the loading queue
 func request_subnode(childnode:OctreeNode) -> void:

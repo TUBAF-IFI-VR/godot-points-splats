@@ -30,7 +30,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
 point_size = 18.0
-initial_visibility_range = 8.0
+point_budget = null
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
@@ -75,5 +75,24 @@ value = 20.0
 [node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=1294363447]
 layout_mode = 2
 
+[node name="LabelPointBudget" type="Label" parent="Panel/VBoxContainer" unique_id=331433958]
+layout_mode = 2
+text = "Point Budget :"
+
+[node name="HBoxPointBudget" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=300806439]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxPointBudget" unique_id=1682315344]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1000.0
+max_value = 10000000.0
+step = 1000.0
+value = 1000.0
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxPointBudget" unique_id=1200553193]
+layout_mode = 2
+
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
+[connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointBudget/HSlider" to="." method="_point_budget_value_changed"]
