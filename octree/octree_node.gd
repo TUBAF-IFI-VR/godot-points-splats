@@ -47,12 +47,11 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 	self.aabb = p_aabb
 	self.depth = p_id.length() - 1
 	
-signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
+#signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
 
 # Setup the node when entering the scene tree
 func _ready() -> void:
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
-	octree_data.point_budget_changed.connect(_on_point_budget_value_changed)
 
 	# TODO: load children in a breadth-first approach!
 	
@@ -66,7 +65,7 @@ func _process(_delta: float) -> void:
 	if visual != null and depth > 0:
 		visual.visible = _is_important_enough_to_load()
 		
-	_update_lod_visibility(_should_be_visible())
+	#_update_lod_visibility(_should_be_visible())
 
 	## Load only the visible children
 	for child in loading_queue.duplicate():
@@ -195,11 +194,8 @@ func _is_important_enough_to_load() -> bool:
 		return false
 
 	var projected_size := _get_projected_size(camera)
-	
-	# TODO: min projected size depends on number of points
-	var min_projected_size := 100.0
 
-	return projected_size >= min_projected_size
+	return projected_size >= octree_data.projection_size_threshold
 
 # update the lod visibility if it changes and signals it
 func _update_lod_visibility(value : bool):
@@ -207,10 +203,10 @@ func _update_lod_visibility(value : bool):
 		return	
 		
 	is_lod_visible = value
-	#if is_lod_visible == true:
-		#print("Visible now: %s" % self.id)
 	
-	lod_visibility_changed.emit(self, value)
+	#if is_lod_visible == true:
+		#octree_data.visible_point_count += points.size()
+	#else :
+		#octree_data.visible_point_count -= points.size()
 
-func _on_point_budget_value_changed(_value: int) -> void:
-	pass	
+	#lod_visibility_changed.emit(self, value)

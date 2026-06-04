@@ -32,11 +32,11 @@ var aabb : AABB:
 		if octree_data:
 			octree_data.initial_visibility_range = value
 
-@export_range(1.0,50.0) var point_budget : int = 20000:
+@export_range(1.0,50.0) var projection_size_threshold : float = 50:
 	set(value):
-		point_budget = value
+		projection_size_threshold = value
 		if octree_data:
-			octree_data.point_budget = value
+			octree_data.projection_size_threshold = value
 			
 func _init() -> void:
 	data_loader = OctreeLoader.get_loader(data_type)
@@ -49,7 +49,7 @@ func _ready() -> void:
 		
 	octree_data = data_loader.load_metadata(octree_path)
 	octree_data.initial_visibility_range = initial_visibility_range
-	octree_data.point_budget = point_budget
+	octree_data.projection_size_threshold = projection_size_threshold
 	octree_data.request_subnode.connect(self.request_subnode)
 	octree_data.defer_subnode.connect(self.defer_subnode)
 	

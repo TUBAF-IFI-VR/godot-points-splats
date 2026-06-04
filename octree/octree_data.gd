@@ -17,8 +17,8 @@ var scale : float = 1.0
 var step_size : int = 1		# Number of hierarchy levels to expect in next hrc file??
 
 var _initial_visibility_range: float 
-var _point_budget : int
-var visible_point_count : int
+#var visible_point_count : int
+var _projection_size_threshold : float
 
 ## Calculated number of bytes per data point
 var point_bytes = 0
@@ -56,7 +56,7 @@ signal defer_subnode(childnode:OctreeNode)
 signal visibility_range_changed(value: float)
 
 @warning_ignore("unused_signal")
-signal point_budget_changed(value: float)
+signal projection_size_threshold_changed(value: int)
 
 var initial_visibility_range: float:
 	get:
@@ -65,9 +65,9 @@ var initial_visibility_range: float:
 		_initial_visibility_range = value
 		visibility_range_changed.emit(value)
 
-var point_budget: int:
+var projection_size_threshold: float:
 	get:
-		return _point_budget
+		return _projection_size_threshold
 	set(value):
-		_point_budget = value
-		point_budget_changed.emit(value)
+		_projection_size_threshold = value
+		projection_size_threshold_changed.emit(value)
