@@ -61,11 +61,8 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 		
-	#set_process(_is_within_visibility_range())
 	if visual != null and depth > 0:
 		visual.visible = _is_important_enough_to_load()
-		
-	#_update_lod_visibility(_should_be_visible())
 
 	## Load only the visible children
 	for child in loading_queue.duplicate():
@@ -196,17 +193,3 @@ func _is_important_enough_to_load() -> bool:
 	var projected_size := _get_projected_size(camera)
 
 	return projected_size >= octree_data.projection_size_threshold
-
-# update the lod visibility if it changes and signals it
-func _update_lod_visibility(value : bool):
-	if is_lod_visible == value:
-		return	
-		
-	is_lod_visible = value
-	
-	#if is_lod_visible == true:
-		#octree_data.visible_point_count += points.size()
-	#else :
-		#octree_data.visible_point_count -= points.size()
-
-	#lod_visibility_changed.emit(self, value)

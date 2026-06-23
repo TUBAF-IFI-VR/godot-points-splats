@@ -17,7 +17,6 @@ var scale : float = 1.0
 var step_size : int = 1		# Number of hierarchy levels to expect in next hrc file??
 
 var _initial_visibility_range: float 
-#var visible_point_count : int
 var _projection_size_threshold : float
 
 ## Calculated number of bytes per data point
