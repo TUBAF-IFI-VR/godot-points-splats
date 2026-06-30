@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://claby38o5j0mx"]
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
-[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="3_272bh"]
 [ext_resource type="Script" uid="uid://d0sj7xpn5nrd2" path="res://xr/start_xr.gd" id="4_1bvp3"]
 [ext_resource type="Script" uid="uid://b87dusots1o44" path="res://xr/scripts/xrcontroller.gd" id="4_272bh"]
 [ext_resource type="PackedScene" uid="uid://bbfj2v625ku8h" path="res://xr/meshes/controller_right.glb" id="5_5vw27"]
@@ -56,7 +56,7 @@ visible = false
 
 [node name="Octree" type="StaticBody3D" parent="." unique_id=671132194]
 collision_layer = 65536
-script = ExtResource("3_272bh")
+script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
 point_size = 18.0
 metadata/_custom_type_script = "uid://cro8443uj6dch"
@@ -86,6 +86,40 @@ value = 20.0
 layout_mode = 2
 text = "0 mm"
 
+[node name="LabelvisibilityRange" type="Label" parent="Panel/VBoxContainer" unique_id=510482021]
+layout_mode = 2
+text = "Initial visibility range:"
+
+[node name="HBoxVisibilityRange" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=736838258]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=243475262]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2.0
+step = 2.0
+value = 20.0
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=1294363447]
+layout_mode = 2
+
+[node name="LabelProjectionThreshold" type="Label" parent="Panel/VBoxContainer" unique_id=331433958]
+layout_mode = 2
+text = "Projection Threshold :"
+
+[node name="HBoxProjectionThreshold" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=300806439]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1682315344]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 500.0
+step = 5.0
+value = 500.0
+
+[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1200553193]
+layout_mode = 2
+
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1569270787]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -7)
 
@@ -107,5 +141,7 @@ target_position = Vector3(0, 0, -6)
 script = ExtResource("4_1bvp3")
 
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
+[connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
+[connection signal="value_changed" from="Panel/VBoxContainer/HBoxProjectionThreshold/HSlider" to="." method="_projection_size_threshold_value_changed"]
 [connection signal="button_pressed" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_pressed"]
 [connection signal="button_released" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_released"]

@@ -16,6 +16,9 @@ var spacing : float = 0.0
 var scale : float = 1.0
 var step_size : int = 1		# Number of hierarchy levels to expect in next hrc file??
 
+var _initial_visibility_range: float 
+var _projection_size_threshold : float
+
 ## Calculated number of bytes per data point
 var point_bytes = 0
 
@@ -28,6 +31,9 @@ var attributes = {
 	"intensity" : false,
 	"class"  : false
 }
+
+## We support different normal vector encodings
+var normal_encoding : String = ""
 
 # A basic point shaded and a quad based rendering for blending effects (just a prototype)
 enum RenderMode {POINT=0, QUAD}
@@ -44,3 +50,23 @@ signal request_subnode(childnode:OctreeNode)
 ## Defer loading of a subnode by removing it from the queue
 @warning_ignore("unused_signal")
 signal defer_subnode(childnode:OctreeNode)
+## Change the initial visibility range end
+@warning_ignore("unused_signal")
+signal visibility_range_changed(value: float)
+
+@warning_ignore("unused_signal")
+signal projection_size_threshold_changed(value: int)
+
+var initial_visibility_range: float:
+	get:
+		return _initial_visibility_range
+	set(value):
+		_initial_visibility_range = value
+		visibility_range_changed.emit(value)
+
+var projection_size_threshold: float:
+	get:
+		return _projection_size_threshold
+	set(value):
+		_projection_size_threshold = value
+		projection_size_threshold_changed.emit(value)

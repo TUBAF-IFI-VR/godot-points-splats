@@ -25,6 +25,11 @@ var path : String = ""
 
 ## Visual point cloud representation
 var visual : GeometryInstance3D = null
+var quad : QuadMesh = null
+
+var visibility_margin: float = 1.0
+var is_lod_visible := false
+var is_loaded := false
 
 # Child nodes and child nodes queued for loading on demand
 # TODO: loading on demand and threaded (delayed) loading of deeper nodes
@@ -40,20 +45,31 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 	
 	self.id = p_id
 	self.aabb = p_aabb
+	self.depth = p_id.length() - 1
 	
+#signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
+
 # Setup the node when entering the scene tree
 func _ready() -> void:
-	# TODO: replace code to load all children with a dynamic approach depending on visibility!
+	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
+
 	# TODO: load children in a breadth-first approach!
-	while len(loading_queue) > 0:
-		var c = loading_queue.pop_front()
-		octree_data.request_subnode.emit(c)
-	
-	#if id == "":
-	#	self.visibility_range_end = 15.0;
 	
 	_create_bbox()
 	
+func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+		
+	if visual != null and depth > 0:
+		visual.visible = _is_important_enough_to_load()
+
+	## Load only the visible children
+	for child in loading_queue.duplicate():
+		if child._should_be_visible():
+			loading_queue.erase(child)
+			octree_data.request_subnode.emit(child)
+			
 ## Create a new bounding box mesh and scale it to the current nodes AABB
 func _create_bbox():
 	var box = BoxMesh.new()
@@ -81,7 +97,7 @@ func create_multimesh() -> void:
 		if octree_data.attributes["color"]:
 			multimesh.use_colors = true
 		multimesh.instance_count = points.size()
-		var quad = QuadMesh.new()
+		quad = QuadMesh.new()
 		quad.size = Vector2(0.1,0.1)
 		multimesh.mesh = quad
 		
@@ -100,7 +116,10 @@ func create_multimesh() -> void:
 			
 		visual.multimesh = multimesh
 		visual.material_override = octree_data.quad_material
+		visual.set_visibility_range_fade_mode(GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+
 		add_child(visual)
+		_apply_visibility_range(visual, depth)
 	
 	# DEBUG: render just bare points
 	else:
@@ -117,3 +136,60 @@ func create_multimesh() -> void:
 		visual = MeshInstance3D.new()
 		visual.mesh = mesh
 		add_child(visual)
+
+## should be visible is not the same as the Node3D visible variable
+func _should_be_visible()-> bool:
+	return _is_within_visibility_range() and _is_important_enough_to_load()
+	
+func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
+	var visibility_range_end = _get_range_end_from_level(level)
+	instance.visibility_range_end = visibility_range_end
+	instance.visibility_range_end_margin = visibility_margin
+	
+func _get_range_end_from_level(level: int) -> float:
+	if level == 0:
+		return 0.0
+	return octree_data.initial_visibility_range / pow(2.0, level - 1)
+
+## apply the visibility range end from the slider
+func _on_visibility_range_value_changed(_value: float) -> void:
+	if visual != null:
+		_apply_visibility_range(visual, depth)
+		
+func _is_within_visibility_range() -> bool:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return false
+
+	var range_end := _get_range_end_from_level(depth)
+
+	if range_end <= 0.0:
+		return true
+
+	var node_center := aabb.get_center()
+	var distance := camera.global_position.distance_to(node_center)
+
+	return distance <= range_end + visibility_margin
+
+func _get_projected_size(camera: Camera3D) -> float:
+	var distance := camera.global_position.distance_to(aabb.get_center())
+	var radius := aabb.size.length() * 0.5
+	var fov_rad := deg_to_rad(camera.fov)
+	var slope = tan(fov_rad* 0.5)
+	var screen_height := get_viewport().get_visible_rect().size.y
+	
+	return screen_height * radius / (slope * distance)
+
+	
+func _is_important_enough_to_load() -> bool:
+	var viewport := get_viewport()
+	if viewport == null: 
+		return false
+
+	var camera := viewport.get_camera_3d()
+	if camera == null:
+		return false
+
+	var projected_size := _get_projected_size(camera)
+
+	return projected_size >= octree_data.projection_size_threshold

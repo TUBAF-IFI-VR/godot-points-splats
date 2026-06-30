@@ -26,6 +26,18 @@ var aabb : AABB:
 		if octree_data:
 			octree_data.quad_material.set_shader_parameter("point_size", value)
 
+@export_range(1.0,100) var initial_visibility_range : float = 100.0:
+	set(value):
+		initial_visibility_range = value
+		if octree_data:
+			octree_data.initial_visibility_range = value
+
+@export_range(1.0,50.0) var projection_size_threshold : float = 50:
+	set(value):
+		projection_size_threshold = value
+		if octree_data:
+			octree_data.projection_size_threshold = value
+			
 func _init() -> void:
 	data_loader = OctreeLoader.get_loader(data_type)
 
@@ -36,6 +48,8 @@ func _ready() -> void:
 		return
 		
 	octree_data = data_loader.load_metadata(octree_path)
+	octree_data.initial_visibility_range = initial_visibility_range
+	octree_data.projection_size_threshold = projection_size_threshold
 	octree_data.request_subnode.connect(self.request_subnode)
 	octree_data.defer_subnode.connect(self.defer_subnode)
 	
