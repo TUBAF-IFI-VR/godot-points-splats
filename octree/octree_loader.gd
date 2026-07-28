@@ -8,10 +8,13 @@ extends Object
 class_name OctreeLoader
 
 ## Available loaders for specific file / hierarchy formats.
-enum DataTypes {Potree}
+enum DataTypes {Potree, LAS}
 
 ## Dictionary of available file loaders.
-const DataLoaders = {"Potree" : preload("../potree/potree_loader.gd")}
+const DataLoaders = {
+	"Potree" : preload("../loaders/potree_loader.gd"),
+	"LAS" : preload("../loaders/las_loader.gd")
+}
 
 ## Returns an instance of a specific loader class.
 static func get_loader(data_type:DataTypes) -> OctreeLoader:

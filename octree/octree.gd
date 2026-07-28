@@ -39,10 +39,12 @@ var aabb : AABB:
 			octree_data.projection_size_threshold = value
 			
 func _init() -> void:
-	data_loader = OctreeLoader.get_loader(data_type)
-
+	pass
+	
 ## Load and setup data structure on scene load
 func _ready() -> void:
+	data_loader = OctreeLoader.get_loader(data_type)
+	
 	if octree_path.is_empty() or (!DirAccess.dir_exists_absolute(octree_path) \
 			and !FileAccess.file_exists(octree_path)):
 		return
