@@ -17,7 +17,13 @@ var aabb : AABB:
 
 ## Path to the root directory of the octree (location of JSON file).
 ## TODO: update octree if path has changed.
-@export_file_path var octree_path : String = ""
+@export_file_path var octree_path : String = "":
+	set(value):
+		if root:
+			free_octree()
+			
+		octree_path = value
+		load_octree()
 
 ## The rendered point size can be adapted in the editor.
 @export_range(1.0,50.0) var point_size : float = 20.0:
@@ -43,6 +49,19 @@ func _init() -> void:
 	
 ## Load and setup data structure on scene load
 func _ready() -> void:
+	load_octree()
+	
+func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	
+	if len(loading_queue) > 0:
+		var c : OctreeNode = loading_queue.pop_front()
+		data_loader.load_pointdata(c)
+		c.create_multimesh()
+		
+## Load a point cloud file
+func load_octree() -> void:
 	data_loader = OctreeLoader.get_loader(data_type)
 	
 	if octree_path.is_empty() or (!DirAccess.dir_exists_absolute(octree_path) \
@@ -61,15 +80,18 @@ func _ready() -> void:
 	root.create_multimesh()
 	
 	add_child(root)
+
+## Free and remove the current octree nodes
+func free_octree() -> void:
+	data_loader.free()
+	data_loader = null
 	
-func _process(_delta: float) -> void:
-	if Engine.is_editor_hint():
-		return
+	remove_child(root)
+	root.queue_free()
+	root = null
 	
-	if len(loading_queue) > 0:
-		var c : OctreeNode = loading_queue.pop_front()
-		data_loader.load_pointdata(c)
-		c.create_multimesh()
+	octree_data.free()
+	octree_data = null
 	
 ## Add child to the loading queue
 func request_subnode(childnode:OctreeNode) -> void:
