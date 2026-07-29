@@ -32,3 +32,10 @@ func load_hierarchy(_node:OctreeNode) -> bool:
 ## Load the actual point cloud data and store in a single node.
 func load_pointdata(_node:OctreeNode) -> bool:
 	return false
+	
+## Prepare a valid AABB by switching axes if size is negative
+func get_valid_aabb(a:Vector3, b:Vector3) -> AABB:
+	var minv : Vector3 = a.min(b)
+	var maxv : Vector3 = a.max(b)
+		
+	return AABB(minv, abs(maxv-minv))

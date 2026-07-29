@@ -3,16 +3,17 @@ extends OctreeLoader
 ## Load potree projects into the [OctreeNode] and [OctreeData] classes
 class_name LASLoader
 
+## Offset to point data from file start
+var point_data_offset : int = 0
+
+## Offset to RGB values depends on the point format
 const color_data_offset = {
 	2: 20,
 	3: 28,
 	5: 28,
 	7: 30,
 	8: 30,
-	
 }
-
-var point_data_offset : int = 0
 
 ## Load a main file describing the hierarchical point cloud.
 func load_metadata(filename:String) -> OctreeData:
@@ -85,14 +86,15 @@ func load_metadata(filename:String) -> OctreeData:
 	var min : Vector3
 	var max : Vector3
 	
-	min.x = header.decode_double(155)
-	min.y = header.decode_double(163)
-	min.z = header.decode_double(171)
 	max.x = header.decode_double(179)
-	max.y = header.decode_double(187)
+	min.x = header.decode_double(187)
 	max.z = header.decode_double(195)
+	min.z = header.decode_double(203)
+	max.y = header.decode_double(211)
+	min.y = header.decode_double(219)
 	
-	octree_data.aabb = AABB(min, max-min)
+	octree_data.aabb = get_valid_aabb(min, max)
+	print(min, max, octree_data.aabb)
 	
 	# Check data format
 	point_data_offset = header.decode_u32(96)
@@ -116,26 +118,26 @@ func load_hierarchy(node:OctreeNode) -> bool:
 	var sum_points = 0
 	var current = node
 	var base_aabb = current.aabb
+	base_aabb.size *= 0.5
 	
 	current.path = current.octree_data.base_path
 	
-	for i in range(8):
-		var child_index = current.id+str(i)
-		var child_aabb = base_aabb
-		
-		# Determine the correct octant
-		var y = 1 if i&1 else -1
-		var z = 1 if i&2 else -1
-		var x = 1 if i&4 else -1
-		
-		# Spawn the new child node and adjust its position
-		child_aabb.position = Vector3(0,0,0)
-		var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
-		
-		child.position = base_aabb.size*Vector3(x,y,z)*0.5
-		current.children[i] = child
-		#current.loading_queue.push_back(child)
-		current.add_child(child)
+	# We prepare one full set of octree nodes (although they are not used so far)
+	#for i in range(8):
+		#var child_index = current.id+str(i)
+		#
+		## Determine the correct octant
+		#var y = 1 if i&1 else -1
+		#var z = 1 if i&2 else -1
+		#var x = 1 if i&4 else -1
+		#
+		## Spawn the new child node and adjust its position
+		#var child:OctreeNode = OctreeNode.new(child_index, base_aabb, node.octree_data)
+		#
+		#child.position = base_aabb.size*Vector3(x,y,z)*0.5
+		#current.children[i] = child
+		##current.loading_queue.push_back(child)
+		#current.add_child(child)
 		
 	return true
 
@@ -156,6 +158,9 @@ func load_pointdata(node:OctreeNode) -> bool:
 		
 	print("Expecting %d points..." % node.octree_data.point_count)
 	
+	var point_format = node.octree_data.format["point_format"]
+	var pos_offset = node.octree_data.offset - node.aabb.position - node.aabb.size*0.5
+	
 	file.seek(self.point_data_offset)
 	for i in range(node.octree_data.point_count):
 		var buffer = file.get_buffer(node.octree_data.point_bytes)
@@ -164,13 +169,12 @@ func load_pointdata(node:OctreeNode) -> bool:
 		var z = buffer.decode_s32(4)
 		var y = buffer.decode_s32(8)
 		
-		node.points[i] = Vector3(x,y,z) * node.octree_data.scale + node.octree_data.offset
-		print(node.points[i])
+		node.points[i] = Vector3(x,y,z) * node.octree_data.scale + pos_offset
 		
 		if node.octree_data.attributes["color"]:
-			var r = buffer.decode_u16(node.octree_data.point_bytes-6) / float(0xFFFF)
-			var g = buffer.decode_u16(node.octree_data.point_bytes-4) / float(0xFFFF)
-			var b = buffer.decode_u16(node.octree_data.point_bytes-2) / float(0xFFFF)
+			var r = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
+			var g = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
+			var b = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
 			node.colors[i] = Color(r,g,b)
 	
 	file.close()

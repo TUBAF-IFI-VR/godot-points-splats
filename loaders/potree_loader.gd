@@ -56,11 +56,11 @@ func load_metadata(filename:String) -> OctreeData:
 	# Convert the bounding boxes into Godot AABBs (swap y and z coordinates)
 	var bb_min = Vector3(metadata["boundingBox"]["lx"],metadata["boundingBox"]["lz"],metadata["boundingBox"]["ly"])
 	var bb_max = Vector3(metadata["boundingBox"]["ux"],metadata["boundingBox"]["uz"],metadata["boundingBox"]["uy"])
-	octree_data.aabb = AABB(bb_min, bb_max-bb_min)
+	octree_data.aabb = get_valid_aabb(bb_min, bb_max)
 	
 	bb_min = Vector3(metadata["tightBoundingBox"]["lx"],metadata["tightBoundingBox"]["lz"],metadata["tightBoundingBox"]["ly"])
 	bb_max = Vector3(metadata["tightBoundingBox"]["ux"],metadata["tightBoundingBox"]["uz"],metadata["tightBoundingBox"]["uy"])
-	octree_data.aabb_tight = AABB(bb_min, bb_max-bb_min)
+	octree_data.aabb_tight = get_valid_aabb(bb_min, bb_max)
 	
 	# TODO: check for errors
 	
