@@ -40,6 +40,8 @@ func switch_to_ar() -> bool:
 	use_ar = true
 	
 	# Change visibility of surrounding objects
+	$controller_right.visible = false
+	
 	if floor_node:
 		floor_node.visible = false
 	if environment_node:
@@ -67,6 +69,8 @@ func switch_to_vr() -> bool:
 	use_ar = false
 	
 	# Change visibility of surrounding objects
+	$controller_right.visible = true
+		
 	if floor_node:
 		floor_node.visible = true
 	if environment_node:
