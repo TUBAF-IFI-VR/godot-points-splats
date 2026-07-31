@@ -28,7 +28,7 @@ func load_metadata(filename:String) -> OctreeData:
 	octree_data.version = float(metadata["version"])
 	octree_data.data_dir = octree_data.base_path+"/"+metadata["octreeDir"]+"/r/"
 	octree_data.spacing = metadata["spacing"]
-	octree_data.scale = metadata["scale"]
+	octree_data.scale = Vector3(metadata["scale"],metadata["scale"],metadata["scale"])
 	octree_data.step_size = metadata["hierarchyStepSize"] 
 	#scale = Vector3(octree_scale, octree_scale, octree_scale)
 	
@@ -47,7 +47,7 @@ func load_metadata(filename:String) -> OctreeData:
 			octree_data.point_bytes += 4
 		elif a == "NORMAL_SPHEREMAPPED" or a == "NORMAL_OCT16":
 			octree_data.attributes["normal"] = true
-			octree_data.normal_encoding = a
+			octree_data.format["normal_encoding"] = a
 			octree_data.point_bytes += 2
 			
 	# For debugging
@@ -56,11 +56,11 @@ func load_metadata(filename:String) -> OctreeData:
 	# Convert the bounding boxes into Godot AABBs (swap y and z coordinates)
 	var bb_min = Vector3(metadata["boundingBox"]["lx"],metadata["boundingBox"]["lz"],metadata["boundingBox"]["ly"])
 	var bb_max = Vector3(metadata["boundingBox"]["ux"],metadata["boundingBox"]["uz"],metadata["boundingBox"]["uy"])
-	octree_data.aabb = AABB(bb_min, bb_max-bb_min)
+	octree_data.aabb = get_valid_aabb(bb_min, bb_max)
 	
 	bb_min = Vector3(metadata["tightBoundingBox"]["lx"],metadata["tightBoundingBox"]["lz"],metadata["tightBoundingBox"]["ly"])
 	bb_max = Vector3(metadata["tightBoundingBox"]["ux"],metadata["tightBoundingBox"]["uz"],metadata["tightBoundingBox"]["uy"])
-	octree_data.aabb_tight = AABB(bb_min, bb_max-bb_min)
+	octree_data.aabb_tight = get_valid_aabb(bb_min, bb_max)
 	
 	# TODO: check for errors
 	
@@ -249,9 +249,9 @@ func load_pointdata(node:OctreeNode) -> bool:
 		
 		# TODO: not sure about the correct interpretation for specific versions
 		if node.octree_data.version > 1.3:
-			x = file.get_32() * node.octree_data.scale
-			z = file.get_32() * node.octree_data.scale
-			y = file.get_32() * node.octree_data.scale
+			x = file.get_32() * node.octree_data.scale.x
+			z = file.get_32() * node.octree_data.scale.y
+			y = file.get_32() * node.octree_data.scale.z
 		else:
 			x = file.get_float()
 			z = file.get_float()
@@ -272,7 +272,7 @@ func load_pointdata(node:OctreeNode) -> bool:
 			file.get_8()
 		# Read the normal vector if present
 		if node.octree_data.attributes["normal"]:
-			if node.octree_data.normal_encoding == "NORMAL_OCT16":
+			if node.octree_data.format["normal_encoding"] == "NORMAL_OCT16":
 				node.normals[i] = _decode_normal_oct16(file.get_8(), file.get_8())
 			else:
 				node.normals[i] = _decode_normal_sphere(file.get_8(), file.get_8())

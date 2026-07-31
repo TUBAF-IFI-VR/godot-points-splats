@@ -13,8 +13,10 @@ var data_dir : String = ""
 var aabb : AABB
 var aabb_tight : AABB
 var spacing : float = 0.0
-var scale : float = 1.0
+var scale : Vector3
+var offset : Vector3
 var step_size : int = 1		# Number of hierarchy levels to expect in next hrc file??
+var point_count : int = 0
 
 var _initial_visibility_range: float 
 var _projection_size_threshold : float
@@ -33,14 +35,14 @@ var attributes = {
 }
 
 ## We support different normal vector encodings
-var normal_encoding : String = ""
+var format : Dictionary = {}
 
 # A basic point shaded and a quad based rendering for blending effects (just a prototype)
 enum RenderMode {POINT=0, QUAD}
 
 var render_mode : RenderMode = RenderMode.QUAD
 var point_material = preload("res://octree/basic_point.tres")
-var quad_material = preload("res://octree/basic_quad.tres")
+var quad_material = preload("res://octree/basic_quad.tres").duplicate()
 
 # Signals to trigger loading / unloading of new branches
 

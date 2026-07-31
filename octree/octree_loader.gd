@@ -8,10 +8,13 @@ extends Object
 class_name OctreeLoader
 
 ## Available loaders for specific file / hierarchy formats.
-enum DataTypes {Potree}
+enum DataTypes {Potree, LAS}
 
 ## Dictionary of available file loaders.
-const DataLoaders = {"Potree" : preload("../potree/potree_loader.gd")}
+const DataLoaders = {
+	"Potree" : preload("../loaders/potree_loader.gd"),
+	"LAS" : preload("../loaders/las_loader.gd")
+}
 
 ## Returns an instance of a specific loader class.
 static func get_loader(data_type:DataTypes) -> OctreeLoader:
@@ -29,3 +32,10 @@ func load_hierarchy(_node:OctreeNode) -> bool:
 ## Load the actual point cloud data and store in a single node.
 func load_pointdata(_node:OctreeNode) -> bool:
 	return false
+	
+## Prepare a valid AABB by switching axes if size is negative
+func get_valid_aabb(a:Vector3, b:Vector3) -> AABB:
+	var minv : Vector3 = a.min(b)
+	var maxv : Vector3 = a.max(b)
+		
+	return AABB(minv, abs(maxv-minv))

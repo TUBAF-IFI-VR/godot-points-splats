@@ -101,14 +101,19 @@ func create_multimesh() -> void:
 		quad.size = Vector2(0.1,0.1)
 		multimesh.mesh = quad
 		
+		if not octree_data.attributes["normal"]:
+			octree_data.quad_material.set_shader_parameter("billboard", true)
 		
-		for i in range(points.size()):
-			var up = Vector3.UP
-			if abs(normals[i].dot(up))>0.99:
-				up = Vector3.FORWARD
-			var axis_x = up.cross(normals[i]).normalized()
-			var axis_y = normals[i].cross(axis_x).normalized()
-			var b = Basis(axis_x, axis_y, normals[i])
+		var b = Basis()
+		for i in range(points.size()):	
+			if octree_data.attributes["normal"]:
+				var up = Vector3.UP
+				if abs(normals[i].dot(up))>0.99:
+					up = Vector3.FORWARD
+				var axis_x = up.cross(normals[i]).normalized()
+				var axis_y = normals[i].cross(axis_x).normalized()
+				b = Basis(axis_x, axis_y, normals[i])
+				
 			var t = Transform3D(b, points[i])
 			multimesh.set_instance_transform(i, t)
 			if octree_data.attributes["color"]:
