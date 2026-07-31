@@ -90,7 +90,6 @@ func free_octree() -> void:
 	root.queue_free()
 	root = null
 	
-	octree_data.free()
 	octree_data = null
 	
 ## Add child to the loading queue
