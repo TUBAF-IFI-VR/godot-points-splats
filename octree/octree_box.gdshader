@@ -9,11 +9,11 @@ void vertex() {
 }
 
 void fragment() {
-	int count = int(abs(pos.x)<0.495) + int(abs(pos.y)<0.495) + int(abs(pos.z)<0.495);
+	vec3 pos_abs = abs(pos);
+	int count = int(pos_abs.x<0.485) + int(pos_abs.y<0.485) + int(pos_abs.z<0.485);
 	if( count >= 2 )
 		discard;
 	ALBEDO = vec3(0.8, 0.7, 0.0);
-	//ALPHA = 0.5;
 }
 
 //void light() {
