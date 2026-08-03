@@ -32,7 +32,6 @@ script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
 initial_visibility_range = 20.0
 projection_size_threshold = 0.35000000000000003
-show_debug_objects = null
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
