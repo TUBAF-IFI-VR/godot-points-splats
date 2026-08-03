@@ -3,6 +3,8 @@ extends OctreeLoader
 ## Load potree projects into the [OctreeNode] and [OctreeData] classes
 class_name PotreeLoader
 
+const _debug_analyze_hrc = false
+
 ## Load a main file describing the hierarchical point cloud.
 func load_metadata(filename:String) -> OctreeData:
 	var octree_data = OctreeData.new()
@@ -65,19 +67,19 @@ func load_metadata(filename:String) -> OctreeData:
 	# TODO: check for errors
 	
 	# DEBUG:
-	var hrc_file = octree_data.base_path + "/data/r/r.hrc"
-	var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
-	var hrc_output = FileAccess.open("hrc_analysis.txt",FileAccess.WRITE)
-	print("Analyzing hierarchy file '%s'" % hrc_file)
-	print("--------------------")
-	for n in hrc_data:
-		var output = "%5s | %8d | " % [n["name"], n["points"]]
-		for i in range(8):
-			output += "1" if n["mask"] & (1<<i) else "0"
-		hrc_output.store_line(output)
-	hrc_output.close()
+	if _debug_analyze_hrc:
+		var hrc_file = octree_data.base_path + "/data/r/r.hrc"
+		var hrc_data = PotreeLoader.analyze_hrc(hrc_file)
+		var hrc_output = FileAccess.open("hrc_analysis.txt",FileAccess.WRITE)
+		print("Analyzing hierarchy file '%s'" % hrc_file)
+		print("--------------------")
+		for n in hrc_data:
+			var output = "%5s | %8d | " % [n["name"], n["points"]]
+			for i in range(8):
+				output += "1" if n["mask"] & (1<<i) else "0"
+			hrc_output.store_line(output)
+		hrc_output.close()
 	
-	#root = _load_hierarchy(base_path + metadata["octreeDir"])
 	return octree_data
 
 ## Load a subfile that describes the hierarchy of a new branch (or the root).
@@ -169,6 +171,7 @@ func load_hierarchy(node:OctreeNode) -> bool:
 		# End of single hrc file parsing
 		
 	print("Finished parsing %d hierarchy files with %d points in total." % [hrc_count,sum_points])
+	node.octree_data.point_count += sum_points
 	
 	return true
 	
@@ -178,17 +181,16 @@ func _decode_normal_sphere(x:int, y:int) -> Vector3:
 	# https://github.com/potree/potree/blob/develop/src/workers/BinaryDecoderWorker.js
 	var nx = (x / 255.0) * 2.0 - 1.0;
 	var ny = (y / 255.0) * 2.0 - 1.0;
-	var nz = 1.0;
-	var nw = -1.0;
-	var l = (nx * (-nx)) + (ny * (-ny)) + (nz * (-nw));
+	var l = max(0.0, 1.0 - (nx*nx + ny*ny));
+	var nz = l;
 	nz = l;
 	nx = nx * sqrt(l);
 	ny = ny * sqrt(l);
 	
 	# Convert from 0/1 range to -1/+1
-	nx = nx * 2;
-	ny = ny * 2;
-	nz = nz * 2 - 1;
+	nx = nx * 2.0;
+	ny = ny * 2.0;
+	nz = nz * 2.0 - 1.0;
 	
 	return Vector3(nx,nz,ny).normalized()
 	
@@ -284,6 +286,8 @@ func load_pointdata(node:OctreeNode) -> bool:
 	while !file.eof_reached():
 		last_byte = file.get_8()
 		extra_bytes += 1
+		
+	node.octree_data.loaded_point_count += point_count
 	
 	# Validate the binary file
 	if extra_bytes != 1 or last_byte != 0:

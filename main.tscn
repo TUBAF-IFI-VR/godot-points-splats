@@ -4,6 +4,8 @@
 [ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
+[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://metric_logger.gd" id="5_lquwl"]
+[ext_resource type="Script" uid="uid://cfyb3xvefq5hb" path="res://camera_replay.gd" id="6_7mycd"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
 size = Vector2(5, 5)
@@ -23,26 +25,39 @@ mesh = SubResource("QuadMesh_ig7tw")
 
 [node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
-
-[node name="VisibleOnScreenNotifier3D" type="VisibleOnScreenNotifier3D" parent="." unique_id=1057501747]
+visible = false
 
 [node name="Octree" type="Node3D" parent="." unique_id=278494610]
 script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
-point_size = 18.0
-projection_size_threshold = null
+initial_visibility_range = 20.0
+projection_size_threshold = 0.35000000000000003
+show_debug_objects = null
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -160.0
 offset_right = 240.0
-offset_bottom = 160.0
+grow_vertical = 0
+size_flags_vertical = 8
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=611320019]
 layout_mode = 2
 
+[node name="LabelPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1544910594]
+layout_mode = 2
+text = "Total points: 0"
+
+[node name="LabelLoadedPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1556816497]
+layout_mode = 2
+text = "Loaded points: 0"
+
 [node name="LabelPointSize" type="Label" parent="Panel/VBoxContainer" unique_id=208281412]
 layout_mode = 2
-text = "Point Size:"
+text = "Point size:"
 
 [node name="HBoxPointSize" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=187394094]
 layout_mode = 2
@@ -77,7 +92,7 @@ layout_mode = 2
 
 [node name="LabelProjectionThreshold" type="Label" parent="Panel/VBoxContainer" unique_id=331433958]
 layout_mode = 2
-text = "Projection Threshold :"
+text = "Projection threshold :"
 
 [node name="HBoxProjectionThreshold" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=300806439]
 layout_mode = 2
@@ -85,13 +100,50 @@ layout_mode = 2
 [node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1682315344]
 layout_mode = 2
 size_flags_horizontal = 3
-max_value = 500.0
+max_value = 200.0
 step = 5.0
-value = 500.0
+value = 200.0
 
 [node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1200553193]
 layout_mode = 2
 
+[node name="CheckAdaptiveSize" type="CheckButton" parent="Panel/VBoxContainer" unique_id=1504346175]
+layout_mode = 2
+button_pressed = true
+text = "Adaptive point size:    "
+
+[node name="CheckShowDebug" type="CheckButton" parent="Panel/VBoxContainer" unique_id=724598076]
+layout_mode = 2
+text = "Show debug objects:    "
+
+[node name="FileDialog" type="FileDialog" parent="Panel" unique_id=1000562092]
+
+[node name="MenuPanel" type="PanelContainer" parent="." unique_id=1119591642]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="MenuHBoxContainer" type="HBoxContainer" parent="MenuPanel" unique_id=1473166358]
+layout_mode = 2
+
+[node name="OpenFileButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=185512126]
+layout_mode = 2
+
+[node name="SlidersButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=2013885030]
+layout_mode = 2
+
+[node name="MetricLogger" type="Node" parent="." unique_id=1177513302 node_paths=PackedStringArray("octree", "camera_recorder")]
+script = ExtResource("5_lquwl")
+octree = NodePath("../Octree")
+camera_recorder = NodePath("../CameraReplay")
+
+[node name="CameraReplay" type="Node" parent="." unique_id=699033679 node_paths=PackedStringArray("camera")]
+script = ExtResource("6_7mycd")
+camera = NodePath("../Camera3D")
+replay_speed = 5.0
+save_screenshots = true
+
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxProjectionThreshold/HSlider" to="." method="_projection_size_threshold_value_changed"]
+[connection signal="toggled" from="Panel/VBoxContainer/CheckAdaptiveSize" to="." method="_adaptive_point_size_changed"]
+[connection signal="toggled" from="Panel/VBoxContainer/CheckShowDebug" to="." method="_show_debug_objects_changed"]

@@ -17,7 +17,7 @@ var intensities : PackedFloat32Array		## Point intensity values (not used so far
 ## Each node has its own AABB
 var aabb : AABB
 
-## Reference (copy) to the global properties of this octree 
+## Reference to the global properties of this octree 
 var octree_data : OctreeData = null
 
 ## Path in the octree folder hierarchy
@@ -25,7 +25,9 @@ var path : String = ""
 
 ## Visual point cloud representation
 var visual : GeometryInstance3D = null
+var notifier : VisibleOnScreenNotifier3D = null
 var quad : QuadMesh = null
+var bbox : MeshInstance3D = null
 
 var visibility_margin: float = 1.0
 var is_lod_visible := false
@@ -50,37 +52,45 @@ func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
 #signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
 
 # Setup the node when entering the scene tree
-func _ready() -> void:
+func _ready() -> void:	
+	_create_bbox()
+	
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 
 	# TODO: load children in a breadth-first approach!
-	
-	_create_bbox()
+		
+	if not notifier:
+		notifier = VisibleOnScreenNotifier3D.new()
+		add_child(notifier)
+	notifier.aabb = self.aabb
 	
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 		
-	if visual != null and depth > 0:
-		visual.visible = _is_important_enough_to_load()
+	if octree_data.show_debug_objects != bbox.visible:
+		bbox.visible = octree_data.show_debug_objects
+		
+	#if visual != null and depth > 0:
+	#	visual.visible = _is_important_enough_to_load()
 
 	## Load only the visible children
 	for child in loading_queue.duplicate():
-		if child._should_be_visible():
+		if child._is_important_enough_to_load() and child.notifier.is_on_screen():
 			loading_queue.erase(child)
 			octree_data.request_subnode.emit(child)
 			
 ## Create a new bounding box mesh and scale it to the current nodes AABB
 func _create_bbox():
-	var box = BoxMesh.new()
-	box.size = Vector3(1,1,1)
-	box.material = load("res://octree/octree_box.tres")
-	var inst = MeshInstance3D.new()
-	inst.scale = aabb.size
+	var box_mesh = BoxMesh.new()
+	box_mesh.size = Vector3(1,1,1)
+	box_mesh.material = load("res://octree/octree_box.tres")
+	bbox = MeshInstance3D.new()
+	bbox.scale = aabb.size
 	#inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scaling - octree_data.aabb.size*0.5
-	inst.mesh = box
-	inst.visibility_range_end = 10.0;
-	add_child(inst)
+	bbox.mesh = box_mesh
+	bbox.visibility_range_end = 10.0;
+	add_child(bbox)
 	
 func create_multimesh() -> void:
 	# Existing geometry will be replaced
@@ -150,6 +160,10 @@ func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
 	var visibility_range_end = _get_range_end_from_level(level)
 	instance.visibility_range_end = visibility_range_end
 	instance.visibility_range_end_margin = visibility_margin
+	if not bbox:
+		return
+	bbox.visibility_range_end = visibility_range_end
+	bbox.visibility_range_end_margin = visibility_margin
 	
 func _get_range_end_from_level(level: int) -> float:
 	if level == 0:
@@ -181,9 +195,11 @@ func _get_projected_size(camera: Camera3D) -> float:
 	var radius := aabb.size.length() * 0.5
 	var fov_rad := deg_to_rad(camera.fov)
 	var slope = tan(fov_rad* 0.5)
-	var screen_height := get_viewport().get_visible_rect().size.y
 	
-	return screen_height * radius / (slope * distance)
+	# Screen height is only necessary for absolute pixel values
+	#var screen_height := get_viewport().get_visible_rect().size.y
+	
+	return radius / (slope * distance)
 
 	
 func _is_important_enough_to_load() -> bool:

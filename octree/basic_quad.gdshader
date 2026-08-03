@@ -1,8 +1,9 @@
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled;//, skip_vertex_transform;
 
-uniform float point_size : hint_range(2.0,100.0) = 10.0;
+uniform float point_size : hint_range(1.0,100.0) = 20.0;
 uniform float blend : hint_range(0.0,1.0) = 1.0;
+uniform bool adaptive_point_size = true;
 uniform bool billboard = false;
 
 void vertex() {
@@ -11,11 +12,16 @@ void vertex() {
     //BINORMAL = normalize((MODELVIEW_MATRIX * vec4(BINORMAL, 0.0)).xyz);
     //TANGENT = normalize((MODELVIEW_MATRIX * vec4(TANGENT, 0.0)).xyz);
 	
-	vec3 world_normal = normalize(mat3(MODEL_MATRIX)*NORMAL);
+	//vec3 world_normal = normalize(mat3(MODEL_MATRIX)*NORMAL);
 	//COLOR = vec4(vec3(0.4)+vec3(world_normal.x, world_normal.z, world_normal.y)*0.4, 1.0);
 	
-	float camera_dist = length(MODELVIEW_MATRIX[3].xyz);
-	VERTEX *= point_size*0.01 * (1.0 + camera_dist);
+	float scaling = 1.0;
+	
+	if (adaptive_point_size == true) {
+		float camera_dist = length(MODELVIEW_MATRIX[3].xyz);
+		scaling = 1.0 + camera_dist * 0.15;
+	}
+	VERTEX *= point_size * 0.01 * scaling;
 	
 	if (billboard) {
 		MODELVIEW_MATRIX = VIEW_MATRIX * mat4(

@@ -83,18 +83,18 @@ func load_metadata(filename:String) -> OctreeData:
 	octree_data.offset.z = header.decode_double(171)
 	
 	# Read point cloud extends
-	var min : Vector3
-	var max : Vector3
+	var bbmin : Vector3
+	var bbmax : Vector3
 	
-	max.x = header.decode_double(179)
-	min.x = header.decode_double(187)
-	max.z = header.decode_double(195)
-	min.z = header.decode_double(203)
-	max.y = header.decode_double(211)
-	min.y = header.decode_double(219)
+	bbmax.x = header.decode_double(179)
+	bbmin.x = header.decode_double(187)
+	bbmax.z = header.decode_double(195)
+	bbmin.z = header.decode_double(203)
+	bbmax.y = header.decode_double(211)
+	bbmin.y = header.decode_double(219)
 	
-	octree_data.aabb = get_valid_aabb(min, max)
-	print(min, max, octree_data.aabb)
+	octree_data.aabb = get_valid_aabb(bbmin, bbmax)
+	print(bbmin, bbmax, octree_data.aabb)
 	
 	# Check data format
 	point_data_offset = header.decode_u32(96)
@@ -115,7 +115,7 @@ func load_metadata(filename:String) -> OctreeData:
 
 ## Load a subfile that describes the hierarchy of a new branch (or the root).
 func load_hierarchy(node:OctreeNode) -> bool:
-	var sum_points = 0
+	#var sum_points = 0
 	var current = node
 	var base_aabb = current.aabb
 	base_aabb.size *= 0.5
@@ -176,6 +176,8 @@ func load_pointdata(node:OctreeNode) -> bool:
 			var g = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
 			var b = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
 			node.colors[i] = Color(r,g,b)
+			
+	node.octree_data.loaded_point_count = node.octree_data.point_count
 	
 	file.close()
 	return true
