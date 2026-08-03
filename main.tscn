@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" uid="uid://bbfj2v625ku8h" path="res://xr/meshes/controller_right.glb" id="5_5vw27"]
 [ext_resource type="PackedScene" uid="uid://14s4tmmpwr7k" path="res://xr/teleport_ray_cast.tscn" id="6_kek77"]
 [ext_resource type="PackedScene" uid="uid://bjm267pc3y881" path="res://xr/grab_ray_cast.tscn" id="7_5vw27"]
+[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://metric_logger.gd" id="5_lquwl"]
+[ext_resource type="Script" uid="uid://cfyb3xvefq5hb" path="res://camera_replay.gd" id="6_7mycd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1bvp3"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -60,20 +62,33 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.5, 4.5)
 collision_layer = 65536
 script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
-point_size = 5.0
-initial_visibility_range = 40.0
+initial_visibility_range = 20.0
+projection_size_threshold = 0.35000000000000003
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -160.0
 offset_right = 240.0
-offset_bottom = 160.0
+grow_vertical = 0
+size_flags_vertical = 8
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=611320019]
 layout_mode = 2
 
+[node name="LabelPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1544910594]
+layout_mode = 2
+text = "Total points: 0"
+
+[node name="LabelLoadedPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1556816497]
+layout_mode = 2
+text = "Loaded points: 0"
+
 [node name="LabelPointSize" type="Label" parent="Panel/VBoxContainer" unique_id=208281412]
 layout_mode = 2
-text = "Point Size:"
+text = "Point size:"
 
 [node name="HBoxPointSize" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=187394094]
 layout_mode = 2
@@ -108,7 +123,7 @@ layout_mode = 2
 
 [node name="LabelProjectionThreshold" type="Label" parent="Panel/VBoxContainer" unique_id=331433958]
 layout_mode = 2
-text = "Projection Threshold :"
+text = "Projection threshold :"
 
 [node name="HBoxProjectionThreshold" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=300806439]
 layout_mode = 2
@@ -116,12 +131,47 @@ layout_mode = 2
 [node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1682315344]
 layout_mode = 2
 size_flags_horizontal = 3
-max_value = 500.0
+max_value = 200.0
 step = 5.0
-value = 500.0
+value = 200.0
 
 [node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1200553193]
 layout_mode = 2
+
+[node name="CheckAdaptiveSize" type="CheckButton" parent="Panel/VBoxContainer" unique_id=1504346175]
+layout_mode = 2
+button_pressed = true
+text = "Adaptive point size:    "
+
+[node name="CheckShowDebug" type="CheckButton" parent="Panel/VBoxContainer" unique_id=724598076]
+layout_mode = 2
+text = "Show debug objects:    "
+
+[node name="FileDialog" type="FileDialog" parent="Panel" unique_id=1000562092]
+
+[node name="MenuPanel" type="PanelContainer" parent="." unique_id=1119591642]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="MenuHBoxContainer" type="HBoxContainer" parent="MenuPanel" unique_id=1473166358]
+layout_mode = 2
+
+[node name="OpenFileButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=185512126]
+layout_mode = 2
+
+[node name="SlidersButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=2013885030]
+layout_mode = 2
+
+[node name="MetricLogger" type="Node" parent="." unique_id=1177513302 node_paths=PackedStringArray("octree", "camera_recorder")]
+script = ExtResource("5_lquwl")
+octree = NodePath("../Octree")
+camera_recorder = NodePath("../CameraReplay")
+
+[node name="CameraReplay" type="Node" parent="." unique_id=699033679 node_paths=PackedStringArray("camera")]
+script = ExtResource("6_7mycd")
+camera = NodePath("../Camera3D")
+replay_speed = 5.0
+save_screenshots = true
 
 [node name="XROrigin3D" type="XROrigin3D" parent="." unique_id=1569270787]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
@@ -146,5 +196,7 @@ script = ExtResource("4_1bvp3")
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxProjectionThreshold/HSlider" to="." method="_projection_size_threshold_value_changed"]
+[connection signal="toggled" from="Panel/VBoxContainer/CheckAdaptiveSize" to="." method="_adaptive_point_size_changed"]
+[connection signal="toggled" from="Panel/VBoxContainer/CheckShowDebug" to="." method="_show_debug_objects_changed"]
 [connection signal="button_pressed" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_pressed"]
 [connection signal="button_released" from="XROrigin3D/XRController3D" to="XROrigin3D/XRController3D" method="_on_button_released"]

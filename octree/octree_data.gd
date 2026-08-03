@@ -15,8 +15,10 @@ var aabb_tight : AABB
 var spacing : float = 0.0
 var scale : Vector3
 var offset : Vector3
-var step_size : int = 1		# Number of hierarchy levels to expect in next hrc file??
-var point_count : int = 0
+var step_size : int = 1			## Number of hierarchy levels to expect in next hierarchy file
+var point_count : int = 0		## Total number of points in point cloud
+var loaded_point_count : int = 0 ## Currently loaded number of points
+var show_debug_objects : bool = false
 
 var _initial_visibility_range: float 
 var _projection_size_threshold : float
