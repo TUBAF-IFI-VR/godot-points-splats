@@ -99,7 +99,7 @@ func load_hierarchy(node:OctreeNode) -> bool:
 		var filename = root.path+".hrc"
 		var file = FileAccess.open(filename, FileAccess.READ)
 		if not file:
-			push_error("Failed to open hierarchy file: "+filename)
+			#push_error("Failed to open hierarchy file: "+filename)
 			return false
 		
 	
@@ -138,11 +138,19 @@ func load_hierarchy(node:OctreeNode) -> bool:
 					var child:OctreeNode = OctreeNode.new(child_index, child_aabb, node.octree_data)
 					#child.depth = current.depth+1
 					
-					# TODO: Load hrc files of deeper branches. This is just a temporary fix!
-					if current.depth+1 == step_size*step:
-						child.path = child.path.left(current.path.rfind("/")) + "/" + child.id.right(-1) + "/" + child_index
-						hrc_files.push_back([child,step+1])
-					if current.depth < step_size*step:
+					child.path = current.path.get_base_dir().path_join(child_index)
+
+					if current.depth + 1 == step_size * step:
+						var folder_start: int = 1 + ((step - 1) * step_size)
+						var folder_name: String = child.id.substr(folder_start, step_size)
+
+						child.path = current.path.get_base_dir() \
+							.path_join(folder_name) \
+							.path_join(child_index)
+
+						hrc_files.push_back([child, step + 1])
+
+					if current.depth < step_size * step:
 						next_nodes.push_back(child)
 					
 					child.position = base_aabb.size*Vector3(x,y,z)*0.5
