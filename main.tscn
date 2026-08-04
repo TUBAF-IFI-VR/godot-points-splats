@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
 [ext_resource type="Texture2D" uid="uid://b2g0f8nfwde31" path="res://folder-open.svg" id="5_272bh"]
-[ext_resource type="Script" path="res://metric_logger.gd" id="5_lquwl"]
+[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://metric_logger.gd" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://d2kbr4avxgbs6" path="res://sliders-horizontal.svg" id="6_5vw27"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
@@ -30,9 +30,10 @@ visible = false
 
 [node name="Octree" type="Node3D" parent="." unique_id=278494610]
 script = ExtResource("1_ig7tw")
+max_threads = null
 octree_path = "res://lion_takanawa/cloud.js"
-initial_visibility_range = 20.0
-projection_size_threshold = 0.35000000000000003
+initial_visibility_range = 5.0
+projection_size_threshold = 0.3
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
@@ -147,6 +148,7 @@ expand_icon = true
 script = ExtResource("5_lquwl")
 octree = NodePath("../Octree")
 logging_mode = 1
+logging_rate = 1.0
 camera_recorder = NodePath("../CameraReplay")
 
 [node name="CameraReplay" type="Node" parent="." unique_id=699033679]

@@ -3,6 +3,7 @@ extends Node
 
 enum LoggingMode {Permanent, OnKeyPress, OnCameraEvent}
 
+@export var enabled : bool = false					## Processing is disabled by default
 @export var octree : Octree = null			## Reference to the logged octree
 @export var logging_mode : LoggingMode = LoggingMode.Permanent 	## Create only a log entry if enter was presssed
 @export var logging_rate : float = 2.0		## Number of seconds between 2 log entries
@@ -12,6 +13,11 @@ var log_file: FileAccess
 var log_timer := 0.0
 
 func _ready() -> void:
+	if not enabled:
+		set_process(false)
+		set_process_input(false)
+		return
+		
 	var folder_path := ProjectSettings.globalize_path("user://")
 
 	var file_path := folder_path + "performance_profile.csv"

@@ -6,6 +6,7 @@ enum ReplayMode {Replay, Record}
 
 signal reached_next_pos
 
+@export var enabled : bool = false					## Processing is disabled by default
 @export var camera : Node3D = null					## Reference to the used camera
 @export var mode : ReplayMode = ReplayMode.Replay		## Switch recording and replay
 @export var replay_speed : float = 1.0				## Replay the recorded camera path slower / faster
@@ -17,6 +18,11 @@ var camera_path : Array = []
 var camera_timer : float = 0.0
 
 func _ready() -> void:
+	if not enabled:
+		set_process(false)
+		set_process_input(false)
+		return
+	
 	var folder_path = ProjectSettings.globalize_path("user://")
 
 	record_file_path = folder_path + "camera_path.json"
