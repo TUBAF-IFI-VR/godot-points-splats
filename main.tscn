@@ -30,10 +30,9 @@ visible = false
 
 [node name="Octree" type="Node3D" parent="." unique_id=278494610]
 script = ExtResource("1_ig7tw")
-max_threads = null
 octree_path = "res://lion_takanawa/cloud.js"
-initial_visibility_range = 5.0
-projection_size_threshold = 0.3
+initial_visibility_range = 10.0
+projection_size_threshold = 0.4
 metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
@@ -85,7 +84,6 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 2.0
-step = 2.0
 value = 20.0
 
 [node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=1294363447]

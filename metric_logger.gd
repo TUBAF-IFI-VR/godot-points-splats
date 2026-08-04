@@ -100,6 +100,9 @@ func log_performance_data() -> void:
 	log_file.store_line(",".join(row_data))
 
 func _exit_tree() -> void:
+	if not enabled:
+		return
+	
 	log_file.flush()
 	if log_file != null:
 		log_file.close()
