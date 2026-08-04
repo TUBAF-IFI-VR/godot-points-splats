@@ -5,6 +5,7 @@ extends Node3D
 class_name Octree
 
 @export var data_type : OctreeLoader.DataTypes
+@export var max_threads : int = 4		## Maximum number of additional threads (0=system maximum-1)
 var data_loader : OctreeLoader = null	## Data loader that should be used.
 var root : OctreeNode = null				## Root node
 var octree_data : OctreeData = null		## Metadata
@@ -121,6 +122,9 @@ func load_octree() -> void:
 		
 	# Create a set of loading threads which wait for requested octree nodes
 	_loading_thread_count = max(1, OS.get_processor_count()-1)
+	if max_threads > 0:
+		_loading_thread_count = min(max_threads, _loading_thread_count)
+
 	for i in _loading_thread_count:
 		var t = Thread.new()
 		_loading_stopped = false
