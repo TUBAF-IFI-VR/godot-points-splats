@@ -4,30 +4,30 @@ extends Node3D
 class_name OctreeNode
 
 ## ID encoded as string (prefixed with IDs of higher order nodes)
-var id : String = ""
+var id: String = ""
 ## Depth in the point cloud hierarchy.
-var depth : int = 0
+var depth: int = 0
 
 # Point attribute storage
-var points : PackedVector3Array			## Position data
-var normals : PackedVector3Array			## Normal vectors
-var colors : PackedColorArray			## Color values
-var intensities : PackedFloat32Array		## Point intensity values (not used so far)
+var points: PackedVector3Array ## Position data
+var normals: PackedVector3Array ## Normal vectors
+var colors: PackedColorArray ## Color values
+var intensities: PackedFloat32Array ## Point intensity values (not used so far)
 
 ## Each node has its own AABB
-var aabb : AABB
+var aabb: AABB
 
-## Reference to the global properties of this octree 
-var octree_data : OctreeData = null
+## Reference to the global properties of this octree
+var octree_data: OctreeData = null
 
 ## Path in the octree folder hierarchy
-var path : String = ""
+var path: String = ""
 
 ## Visual point cloud representation
-var visual : GeometryInstance3D = null
-var notifier : VisibleOnScreenNotifier3D = null
-var quad : QuadMesh = null
-var bbox : MeshInstance3D = null
+var visual: GeometryInstance3D = null
+var notifier: VisibleOnScreenNotifier3D = null
+var quad: QuadMesh = null
+var bbox: MeshInstance3D = null
 
 var visibility_margin: float = 1.0
 var is_lod_visible := false
@@ -37,61 +37,62 @@ var is_loaded := false
 # TODO: loading on demand and threaded (delayed) loading of deeper nodes
 # TODO: improve loading queue approach? (currently per node queue and global queue in [Octree])
 # TODO: we should also cosider to free nodes that are not necessary anymore!
-var children : Dictionary = {}
-var loading_queue : Array = []
+var children: Dictionary = { }
+var loading_queue: Array = []
+
 
 ## Initialize node properties and load a new HRC file if necessary
-func _init(p_id:String, p_aabb:AABB, p_octree_data:OctreeData) -> void:
+func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 	self.octree_data = p_octree_data
-	self.path = p_octree_data.data_dir+p_id
-	
+	self.path = p_octree_data.data_dir + p_id
+
 	self.id = p_id
 	self.aabb = p_aabb
 	self.depth = p_id.length() - 1
-	
+
 #signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
 
+
 # Setup the node when entering the scene tree
-func _ready() -> void:	
+func _ready() -> void:
 	_create_bbox()
-	
+
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 
 	# TODO: load children in a breadth-first approach!
-		
 	if not notifier:
 		notifier = VisibleOnScreenNotifier3D.new()
 		add_child(notifier)
 	notifier.aabb = self.aabb
-	
+
+
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-		
+
 	if octree_data.show_debug_objects != bbox.visible:
 		bbox.visible = octree_data.show_debug_objects
-		
-	#if visual != null and depth > 0:
-	#	visual.visible = _is_important_enough_to_load()
 
 	## Load only the visible children
 	for child in loading_queue.duplicate():
 		if child._is_important_enough_to_load() and child.notifier.is_on_screen():
 			loading_queue.erase(child)
 			octree_data.request_subnode.emit(child)
-			
+
+
 ## Create a new bounding box mesh and scale it to the current nodes AABB
 func _create_bbox():
 	var box_mesh = BoxMesh.new()
-	box_mesh.size = Vector3(1,1,1)
+	box_mesh.size = Vector3(1, 1, 1)
 	box_mesh.material = load("res://octree/octree_box.tres")
 	bbox = MeshInstance3D.new()
 	bbox.scale = aabb.size
 	#inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scaling - octree_data.aabb.size*0.5
 	bbox.mesh = box_mesh
-	bbox.visibility_range_end = 10.0;
+	bbox.visibility_range_end = 10.0
 	add_child(bbox)
-	
+
+
 func create_multimesh() -> void:
 	# Existing geometry will be replaced
 	if visual != null:
@@ -102,60 +103,62 @@ func create_multimesh() -> void:
 	if octree_data.render_mode == OctreeData.RenderMode.QUAD:
 		visual = MultiMeshInstance3D.new()
 		var multimesh = MultiMesh.new()
-		
+
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		if octree_data.attributes["color"]:
 			multimesh.use_colors = true
 		multimesh.instance_count = points.size()
 		quad = QuadMesh.new()
-		quad.size = Vector2(0.1,0.1)
+		quad.size = Vector2(0.1, 0.1)
 		multimesh.mesh = quad
-		
+
 		if not octree_data.attributes["normal"]:
 			octree_data.quad_material.set_shader_parameter("billboard", true)
-		
+
 		var b = Basis()
-		for i in range(points.size()):	
+		for i in range(points.size()):
 			if octree_data.attributes["normal"]:
 				var up = Vector3.UP
-				if abs(normals[i].dot(up))>0.99:
+				if abs(normals[i].dot(up)) > 0.99:
 					up = Vector3.FORWARD
 				var axis_x = up.cross(normals[i]).normalized()
 				var axis_y = normals[i].cross(axis_x).normalized()
 				b = Basis(axis_x, axis_y, normals[i])
-				
+
 			var t = Transform3D(b, points[i])
 			multimesh.set_instance_transform(i, t)
 			if octree_data.attributes["color"]:
 				multimesh.set_instance_color(i, colors[i])
-			
+
 		visual.multimesh = multimesh
 		visual.material_override = octree_data.quad_material
 		visual.set_visibility_range_fade_mode(GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
 
 		add_child(visual)
 		_apply_visibility_range(visual, depth)
-	
+
 	# DEBUG: render just bare points
 	else:
 		# Render as pure points
 		var mesh = ArrayMesh.new()
 		var arrays = []
-		
+
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = points
 		arrays[Mesh.ARRAY_COLOR] = colors
-		
+
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays)
 		mesh.surface_set_material(0, octree_data.point_material)
 		visual = MeshInstance3D.new()
 		visual.mesh = mesh
 		add_child(visual)
 
+
 ## should be visible is not the same as the Node3D visible variable
-func _should_be_visible()-> bool:
+func _should_be_visible() -> bool:
 	return _is_within_visibility_range() and _is_important_enough_to_load()
-	
+
+
 func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
 	var visibility_range_end = _get_range_end_from_level(level)
 	instance.visibility_range_end = visibility_range_end
@@ -164,17 +167,20 @@ func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
 		return
 	bbox.visibility_range_end = visibility_range_end
 	bbox.visibility_range_end_margin = visibility_margin
-	
+
+
 func _get_range_end_from_level(level: int) -> float:
 	if level == 0:
 		return 0.0
 	return octree_data.initial_visibility_range / pow(2.0, level - 1)
 
+
 ## apply the visibility range end from the slider
 func _on_visibility_range_value_changed(_value: float) -> void:
 	if visual != null:
 		_apply_visibility_range(visual, depth)
-		
+
+
 func _is_within_visibility_range() -> bool:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
@@ -190,21 +196,21 @@ func _is_within_visibility_range() -> bool:
 
 	return distance <= range_end + visibility_margin
 
+
 func _get_projected_size(camera: Camera3D) -> float:
 	var distance := camera.global_position.distance_to(aabb.get_center())
 	var radius := aabb.size.length() * 0.5
 	var fov_rad := deg_to_rad(camera.fov)
-	var slope = tan(fov_rad* 0.5)
-	
+	var slope = tan(fov_rad * 0.5)
+
 	# Screen height is only necessary for absolute pixel values
 	#var screen_height := get_viewport().get_visible_rect().size.y
-	
 	return radius / (slope * distance)
 
-	
+
 func _is_important_enough_to_load() -> bool:
 	var viewport := get_viewport()
-	if viewport == null: 
+	if viewport == null:
 		return false
 
 	var camera := viewport.get_camera_3d()
