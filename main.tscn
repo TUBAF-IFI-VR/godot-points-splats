@@ -4,8 +4,9 @@
 [ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
-[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://metric_logger.gd" id="5_lquwl"]
-[ext_resource type="Script" uid="uid://cfyb3xvefq5hb" path="res://camera_replay.gd" id="6_7mycd"]
+[ext_resource type="Texture2D" uid="uid://b2g0f8nfwde31" path="res://folder-open.svg" id="5_272bh"]
+[ext_resource type="Script" path="res://metric_logger.gd" id="5_lquwl"]
+[ext_resource type="Texture2D" uid="uid://d2kbr4avxgbs6" path="res://sliders-horizontal.svg" id="6_5vw27"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
 size = Vector2(5, 5)
@@ -118,28 +119,37 @@ text = "Show debug objects:    "
 [node name="FileDialog" type="FileDialog" parent="Panel" unique_id=1000562092]
 
 [node name="MenuPanel" type="PanelContainer" parent="." unique_id=1119591642]
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = 3.0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 44.0
 
 [node name="MenuHBoxContainer" type="HBoxContainer" parent="MenuPanel" unique_id=1473166358]
+clip_contents = true
 layout_mode = 2
+theme_override_constants/separation = 2
 
 [node name="OpenFileButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=185512126]
 layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Open file"
+icon = ExtResource("5_272bh")
+expand_icon = true
 
 [node name="SlidersButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=2013885030]
 layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Open properties sliders"
+icon = ExtResource("6_5vw27")
+expand_icon = true
 
 [node name="MetricLogger" type="Node" parent="." unique_id=1177513302 node_paths=PackedStringArray("octree", "camera_recorder")]
 script = ExtResource("5_lquwl")
 octree = NodePath("../Octree")
+logging_mode = 1
 camera_recorder = NodePath("../CameraReplay")
 
-[node name="CameraReplay" type="Node" parent="." unique_id=699033679 node_paths=PackedStringArray("camera")]
-script = ExtResource("6_7mycd")
-camera = NodePath("../Camera3D")
-replay_speed = 5.0
-save_screenshots = true
+[node name="CameraReplay" type="Node" parent="." unique_id=699033679]
 
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
