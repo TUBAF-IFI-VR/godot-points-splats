@@ -1,6 +1,6 @@
 [gd_resource type="ShaderMaterial" format=3 uid="uid://dtps2s7asnnls"]
 
-[ext_resource type="Shader" uid="uid://bwv5b0o3qsbos" path="res://octree/basic_point.gdshader" id="1_eb61y"]
+[ext_resource type="Shader" uid="uid://bwv5b0o3qsbos" path="res://addons/points-splats/octree/basic_point.gdshader" id="1_eb61y"]
 
 [resource]
 render_priority = 0

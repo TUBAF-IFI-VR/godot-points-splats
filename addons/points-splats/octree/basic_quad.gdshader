@@ -8,9 +8,9 @@ uniform bool billboard = false;
 
 void vertex() {
 	//VERTEX = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    //NORMAL = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-    //BINORMAL = normalize((MODELVIEW_MATRIX * vec4(BINORMAL, 0.0)).xyz);
-    //TANGENT = normalize((MODELVIEW_MATRIX * vec4(TANGENT, 0.0)).xyz);
+	//NORMAL = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	//BINORMAL = normalize((MODELVIEW_MATRIX * vec4(BINORMAL, 0.0)).xyz);
+	//TANGENT = normalize((MODELVIEW_MATRIX * vec4(TANGENT, 0.0)).xyz);
 	
 	//vec3 world_normal = normalize(mat3(MODEL_MATRIX)*NORMAL);
 	//COLOR = vec4(vec3(0.4)+vec3(world_normal.x, world_normal.z, world_normal.y)*0.4, 1.0);

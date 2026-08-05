@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://claby38o5j0mx"]
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
-[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://octree/octree.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://addons/points-splats/octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
 [ext_resource type="Texture2D" uid="uid://b2g0f8nfwde31" path="res://folder-open.svg" id="5_272bh"]
@@ -33,7 +33,6 @@ script = ExtResource("1_ig7tw")
 octree_path = "res://lion_takanawa/cloud.js"
 initial_visibility_range = 10.0
 projection_size_threshold = 0.4
-metadata/_custom_type_script = "uid://cro8443uj6dch"
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
 anchors_preset = 2
