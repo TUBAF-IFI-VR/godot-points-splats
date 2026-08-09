@@ -46,8 +46,8 @@ enum RenderMode {
 }
 
 var render_mode: RenderMode = RenderMode.QUAD
-var point_material = preload("res://octree/basic_point.tres")
-var quad_material = preload("res://octree/basic_quad.tres").duplicate()
+var point_material = preload("res://addons/points-splats/octree/basic_point.tres")
+var quad_material = preload("res://addons/points-splats/octree/basic_quad.tres").duplicate()
 
 # Signals to trigger loading / unloading of new branches
 

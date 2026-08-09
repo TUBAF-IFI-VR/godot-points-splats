@@ -29,6 +29,8 @@ var notifier: VisibleOnScreenNotifier3D = null
 var quad: QuadMesh = null
 var bbox: MeshInstance3D = null
 
+var bbox_material = preload("res://addons/points-splats/octree/octree_box.tres")
+
 var visibility_margin: float = 1.0
 var is_lod_visible := false
 var is_loaded := false
@@ -84,7 +86,7 @@ func _process(_delta: float) -> void:
 func _create_bbox():
 	var box_mesh = BoxMesh.new()
 	box_mesh.size = Vector3(1, 1, 1)
-	box_mesh.material = load("res://octree/octree_box.tres")
+	box_mesh.material = bbox_material
 	bbox = MeshInstance3D.new()
 	bbox.scale = aabb.size
 	#inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scaling - octree_data.aabb.size*0.5
