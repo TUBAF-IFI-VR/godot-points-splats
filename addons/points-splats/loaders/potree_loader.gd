@@ -4,7 +4,7 @@ extends OctreeLoader
 class_name PotreeLoader
 
 const _debug_analyze_hrc = false
-
+const _debug_print_node = false
 
 ## Load a main file describing the hierarchical point cloud.
 func load_metadata(filename: String) -> OctreeData:
@@ -33,7 +33,6 @@ func load_metadata(filename: String) -> OctreeData:
 	octree_data.spacing = metadata["spacing"]
 	octree_data.scale = Vector3(metadata["scale"], metadata["scale"], metadata["scale"])
 	octree_data.step_size = metadata["hierarchyStepSize"]
-	#scale = Vector3(octree_scale, octree_scale, octree_scale)
 
 	# We have to calculate the correct number of bytes per point
 	# Position is always expected, start with 3 floats per point
@@ -53,8 +52,8 @@ func load_metadata(filename: String) -> OctreeData:
 			octree_data.format["normal_encoding"] = a
 			octree_data.point_bytes += 2
 
-	# For debugging
-	print(octree_data.point_bytes, octree_data.attributes)
+	# DEBUG:
+	#print(octree_data.point_bytes, octree_data.attributes)
 
 	# Convert the bounding boxes into Godot AABBs (swap y and z coordinates)
 	var bb_min = Vector3(
@@ -117,7 +116,7 @@ func load_hierarchy(node: OctreeNode) -> bool:
 		var filename = root.path + ".hrc"
 		var file = FileAccess.open(filename, FileAccess.READ)
 		if not file:
-			#push_error("Failed to open hierarchy file: "+filename)
+			push_error("Failed to open hierarchy file: "+filename)
 			return false
 
 		# We start with the root node of the new branch
@@ -174,9 +173,11 @@ func load_hierarchy(node: OctreeNode) -> bool:
 						next_nodes.push_back(child)
 
 					child.position = base_aabb.size * Vector3(x, y, z) * 0.5
+					current._data_mutex.lock()
 					current.children[i] = child
 					current.loading_queue.push_back(child)
 					current.add_child(child)
+					current._data_mutex.unlock()
 
 		var extra_bytes = 0
 		var _last_byte = -1
@@ -258,7 +259,8 @@ func load_pointdata(node: OctreeNode) -> bool:
 		push_error("Failed to open point cloud data file: " + filename)
 		return false
 
-	print("Loading %s" % node.id)
+	if _debug_print_node:
+		print("Loading Potree node: %s" % node.id)
 
 	# For the following line, integer division is desired
 	@warning_ignore("integer_division") var point_count = file.get_length() / node \
@@ -266,6 +268,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 			.point_bytes
 
 	# Create and resize the necessary data arrays
+	node._data_mutex.lock()
 	node.points = PackedVector3Array()
 	node.points.resize(point_count)
 	if node.octree_data.attributes["color"]:
@@ -274,6 +277,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 	if node.octree_data.attributes["normal"]:
 		node.normals = PackedVector3Array()
 		node.normals.resize(point_count)
+	node._data_mutex.unlock()
 
 	#var bb_scale =
 	var x = 0.0

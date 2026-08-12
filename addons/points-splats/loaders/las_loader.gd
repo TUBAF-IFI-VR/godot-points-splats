@@ -91,7 +91,8 @@ func load_metadata(filename: String) -> OctreeData:
 	bbmin.y = header.decode_double(219)
 
 	octree_data.aabb = get_valid_aabb(bbmin, bbmax)
-	print(bbmin, bbmax, octree_data.aabb)
+	# DEBUG:
+	# print(bbmin, bbmax, octree_data.aabb)
 
 	# Check data format
 	point_data_offset = header.decode_u32(96)
@@ -148,13 +149,13 @@ func load_pointdata(node: OctreeNode) -> bool:
 		push_error("Failed to open point cloud data file: " + filename)
 		return false
 
-	print("Loading %s..." % filename)
-
+	node._data_mutex.lock()
 	node.points.resize(node.octree_data.point_count)
 	if node.octree_data.attributes["color"]:
 		node.colors.resize(node.octree_data.point_count)
+	node._data_mutex.unlock()
 
-	print("Expecting %d points..." % node.octree_data.point_count)
+	print("Expecting %d points in '%s'..." % [node.octree_data.point_count,filename])
 
 	var point_format = node.octree_data.format["point_format"]
 	var pos_offset = node.octree_data.offset - node.aabb.position - node.aabb.size * 0.5

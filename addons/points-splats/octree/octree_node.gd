@@ -34,6 +34,9 @@ var bbox_material = preload("res://addons/points-splats/octree/octree_box.tres")
 var visibility_margin: float = 1.0
 var is_lod_visible := false
 var is_loaded := false
+const seconds_next_check = 0.5
+var _data_mutex: Mutex ## Protect node's data while loading
+var _last_check: float = 0.0 ## Seconds since last projection/visiblity check
 
 # Child nodes and child nodes queued for loading on demand
 # TODO: loading on demand and threaded (delayed) loading of deeper nodes
@@ -51,9 +54,8 @@ func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 	self.id = p_id
 	self.aabb = p_aabb
 	self.depth = p_id.length() - 1
-
-#signal lod_visibility_changed(node : OctreeNode, is_visible : bool)
-
+	
+	self._data_mutex = Mutex.new()
 
 # Setup the node when entering the scene tree
 func _ready() -> void:
@@ -68,7 +70,7 @@ func _ready() -> void:
 	notifier.aabb = self.aabb
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 
@@ -76,10 +78,21 @@ func _process(_delta: float) -> void:
 		bbox.visible = octree_data.show_debug_objects
 
 	## Load only the visible children
-	for child in loading_queue.duplicate():
-		if child._is_important_enough_to_load() and child.notifier.is_on_screen():
-			loading_queue.erase(child)
-			octree_data.request_subnode.emit(child)
+	if loading_queue.size() > 0 and _last_check < seconds_next_check:
+		var child = null
+		var i = 0
+		while i < loading_queue.size():
+			child = loading_queue[i]
+			if child._is_important_enough_to_load() and child.notifier.is_on_screen():
+				_data_mutex.lock()
+				loading_queue.remove_at(i)
+				octree_data.request_subnode.emit(child)
+				_data_mutex.unlock()
+			else:
+				i += 1
+		_last_check = 0
+	else:
+		_last_check += delta
 
 
 ## Create a new bounding box mesh and scale it to the current nodes AABB
@@ -136,8 +149,8 @@ func create_multimesh() -> void:
 		visual.material_override = octree_data.quad_material
 		visual.set_visibility_range_fade_mode(GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
 
-		add_child(visual)
-		_apply_visibility_range(visual, depth)
+		call_deferred("add_child", visual)
+		call_deferred("_apply_visibility_range", visual, depth)
 
 	# DEBUG: render just bare points
 	else:
@@ -153,7 +166,7 @@ func create_multimesh() -> void:
 		mesh.surface_set_material(0, octree_data.point_material)
 		visual = MeshInstance3D.new()
 		visual.mesh = mesh
-		add_child(visual)
+		call_deferred("add_child", visual)
 
 
 ## should be visible is not the same as the Node3D visible variable

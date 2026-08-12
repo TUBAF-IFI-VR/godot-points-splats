@@ -12,6 +12,7 @@ var octree_data: OctreeData = null ## Metadata
 var loading_queue: Array = [] ## Sub nodes that have to be loaded
 var _loading_thread_count: int = 1 ## Number of threads that will be used for point loading
 var _loading_threads: Array = [] ## Array of threads performing point loading
+var _loading_mutex: Mutex ## Protect loading queue
 var _loading_stopped: bool = false ## Notify the loading threads to exit
 
 ## Complete bounding box
@@ -92,11 +93,14 @@ func _process(_delta: float) -> void:
 ## Wait for new nodes until loading ended, meant to be executed by individal threads
 func _loading_loop() -> void:
 	while not _loading_stopped:
+		_loading_mutex.lock()
 		if len(loading_queue) > 0:
 			var c: OctreeNode = loading_queue.pop_front()
+			_loading_mutex.unlock()
 			data_loader.load_pointdata(c)
-			c.call_deferred("create_multimesh")
+			c.create_multimesh()
 		else:
+			_loading_mutex.unlock()
 			OS.delay_msec(50)
 
 
@@ -136,6 +140,7 @@ func load_octree() -> void:
 	if max_threads > 0:
 		_loading_thread_count = min(max_threads, _loading_thread_count)
 
+	_loading_mutex = Mutex.new()
 	for i in _loading_thread_count:
 		var t = Thread.new()
 		_loading_stopped = false
@@ -147,8 +152,10 @@ func load_octree() -> void:
 func free_octree() -> void:
 	# Stop the loading process
 	_loading_stopped = true
+	loading_queue.clear()
 	for t in _loading_threads:
-		t.wait_to_finish()
+		if t.is_started():
+			t.wait_to_finish()
 
 	# Free the created loader and data structure
 	data_loader.free()
@@ -164,12 +171,18 @@ func free_octree() -> void:
 ## Add child to the loading queue
 func request_subnode(childnode: OctreeNode) -> void:
 	# Top most nodes of hierarchy get higher priority
+	_loading_mutex.lock()
+	if childnode == null:
+		push_error("Trying to add null node to loading queue!")
 	if loading_queue.size() > 0 and childnode.depth < loading_queue[0].depth:
 		loading_queue.push_front(childnode)
 	else:
 		loading_queue.push_back(childnode)
+	_loading_mutex.unlock()
 
 
 ## Remove a child from the loading queue
 func defer_subnode(childnode: OctreeNode) -> void:
+	_loading_mutex.lock()
 	loading_queue.erase(childnode)
+	_loading_mutex.unlock()
