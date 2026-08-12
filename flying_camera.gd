@@ -22,6 +22,8 @@ func _input(event):
 		rotation.x = clamp(rotation.x + change_y, -1.5, 1.5)
 
 func _physics_process(_delta):
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		return
 	# Set direction vectors for camera movement
 	direction = Vector3()
 	var aim = global_transform.basis.z
