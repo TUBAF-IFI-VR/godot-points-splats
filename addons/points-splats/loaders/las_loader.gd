@@ -16,7 +16,6 @@ func load_metadata(filename: String) -> OctreeData:
 
 	print("Loading LAS file '%s'." % filename)
 
-	# The user should provide the path to a cloud.js, if not we try to fix it
 	if filename.get_extension() != "las":
 		return
 	octree_data.base_path = filename #.get_base_dir()
@@ -44,6 +43,7 @@ func load_metadata(filename: String) -> OctreeData:
 	var version = 0.0
 	version += header[24]
 	version += 0.1 * header[25]
+	octree_data.format["las_version"] = version
 	print("Detected LAS version %.1f." % version)
 
 	# Now we check the actual header size...
@@ -172,9 +172,9 @@ func load_pointdata(node: OctreeNode) -> bool:
 
 		if node.octree_data.attributes["color"]:
 			var r = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
-			var g = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
-			var b = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
-			node.colors[i] = Color(r, g, b)
+			var g = buffer.decode_u16(color_data_offset[point_format]+2) / float(0xFFFF)
+			var b = buffer.decode_u16(color_data_offset[point_format]+4) / float(0xFFFF)
+			node.colors[i] = Color(r, g, b).srgb_to_linear()
 
 	node.octree_data.loaded_point_count = node.octree_data.point_count
 
