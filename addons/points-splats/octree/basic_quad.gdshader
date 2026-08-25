@@ -19,7 +19,7 @@ void vertex() {
 	
 	if (adaptive_point_size == true) {
 		float camera_dist = length(MODELVIEW_MATRIX[3].xyz);
-		scaling = 1.0 + camera_dist * 0.15;
+		scaling = 1.0 + camera_dist * 0.3;
 	}
 	VERTEX *= point_size * 0.01 * scaling;
 	
@@ -34,10 +34,10 @@ void vertex() {
 }
 
 void fragment() {
-	/*float d = length(UV-vec2(0.5));
+	float d = length(UV-vec2(0.5));
 	
 	if( d>0.5 )
-		discard;*/
+		discard;
 	
 	ALBEDO = COLOR.rgb;
 	//ALPHA = COLOR.a * smoothstep(1.0, 1.0-blend*0.5, d*2.0);
