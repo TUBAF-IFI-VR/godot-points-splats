@@ -41,7 +41,7 @@ var loaded_point_count: int:
 		load_octree()
 
 ## The rendered point size in mm, can be adapted in the editor.
-@export_range(1.0, 100.0) var point_size: float = 20.0:
+@export_range(0.5, 100.0, 0.5) var point_size: float = 15.0:
 	set(value):
 		point_size = value
 		if octree_data:

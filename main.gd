@@ -25,13 +25,36 @@ func _ready() -> void:
 
 	file_dialog.clear_filters()
 	file_dialog.add_filter("*.las", "LAS point cloud")
-	file_dialog.add_filter("cloud.js", "Potree point cloud metadata")
+	file_dialog.add_filter("*.ply", "PLY points, mesh or 3dgs")
+	file_dialog.add_filter("cloud.js, metadata.json", "Potree point cloud metadata")
 
 
 func _process(_delta: float) -> void:
 	label_points.text = "Total points: " + str(octree.point_count)
 	label_loaded_points.text = "Loaded points: " + str(octree.loaded_point_count)
 
+
+func _on_orientation_changed(_index:int = -1) -> void:
+	var flip_x = $Panel/VBoxContainer/HBoxContainer/CheckFlipX.button_pressed
+	$Octree.scale.x = -1 if flip_x else 1
+	
+	match $Panel/VBoxContainer/HBoxContainer/OptionUpAxis.selected:
+		# Y up
+		0:
+			$Octree.scale.y = 1
+			$Octree.root.rotation.x = 0
+		# -Y up
+		1:
+			$Octree.scale.y = -1
+			$Octree.root.rotation.x = 0
+		# Z up
+		2:
+			$Octree.scale.y = 1
+			$Octree.root.rotation.x = PI*0.5
+		# -Z up
+		3:
+			$Octree.scale.y = -1
+			$Octree.root.rotation.x = PI*0.5
 
 func _on_pointsize_value_changed(value: float) -> void:
 	$Panel/VBoxContainer/HBoxPointSize/Label.text = str(value) + " mm"
@@ -66,7 +89,9 @@ func _on_file_selected(path: String) -> void:
 
 	if extension == "las":
 		octree.data_type = OctreeLoader.DataTypes.LAS
-	elif extension == "js":
+	elif extension == "ply":
+		octree.data_type = OctreeLoader.DataTypes.PLY
+	elif extension in ["js", "json"]:
 		if path.get_file() != "cloud.js":
 			push_error(" File should be a cloud.js file.")
 			return

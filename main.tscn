@@ -54,6 +54,33 @@ text = "Total points: 0"
 layout_mode = 2
 text = "Loaded points: 0"
 
+[node name="HSeparator" type="HSeparator" parent="Panel/VBoxContainer" unique_id=1369083054]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=2021711099]
+layout_mode = 2
+
+[node name="CheckFlipX" type="CheckButton" parent="Panel/VBoxContainer/HBoxContainer" unique_id=466772050]
+layout_mode = 2
+text = "Flip X"
+
+[node name="LabelUpAxis" type="Label" parent="Panel/VBoxContainer/HBoxContainer" unique_id=838928656]
+layout_mode = 2
+text = "Up Axis:"
+
+[node name="OptionUpAxis" type="OptionButton" parent="Panel/VBoxContainer/HBoxContainer" unique_id=1190679498]
+layout_mode = 2
+selected = 0
+item_count = 4
+popup/item_0/text = "Y"
+popup/item_0/id = 0
+popup/item_1/text = "-Y"
+popup/item_1/id = 1
+popup/item_2/text = "Z"
+popup/item_2/id = 2
+popup/item_3/text = "-Z"
+popup/item_3/id = 3
+
 [node name="LabelPointSize" type="Label" parent="Panel/VBoxContainer" unique_id=208281412]
 layout_mode = 2
 text = "Point size:"
@@ -64,9 +91,9 @@ layout_mode = 2
 [node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=1258691268]
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 2.0
-step = 2.0
-value = 20.0
+min_value = 0.5
+step = 0.5
+value = 15.0
 
 [node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=187009120]
 layout_mode = 2
@@ -115,6 +142,7 @@ layout_mode = 2
 text = "Show debug objects:    "
 
 [node name="FileDialog" type="FileDialog" parent="Panel" unique_id=1000562092]
+size = Vector2i(800, 560)
 
 [node name="MenuPanel" type="PanelContainer" parent="." unique_id=1119591642]
 offset_left = 3.0
@@ -137,7 +165,7 @@ expand_icon = true
 [node name="SlidersButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=2013885030]
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Open properties sliders"
+tooltip_text = "Show/hide settings"
 icon = ExtResource("6_5vw27")
 expand_icon = true
 
@@ -150,6 +178,8 @@ camera_recorder = NodePath("../CameraReplay")
 
 [node name="CameraReplay" type="Node" parent="." unique_id=699033679]
 
+[connection signal="pressed" from="Panel/VBoxContainer/HBoxContainer/CheckFlipX" to="." method="_on_orientation_changed"]
+[connection signal="item_selected" from="Panel/VBoxContainer/HBoxContainer/OptionUpAxis" to="." method="_on_orientation_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
 [connection signal="value_changed" from="Panel/VBoxContainer/HBoxProjectionThreshold/HSlider" to="." method="_projection_size_threshold_value_changed"]

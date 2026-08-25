@@ -102,7 +102,6 @@ func _create_bbox():
 	box_mesh.material = bbox_material
 	bbox = MeshInstance3D.new()
 	bbox.scale = aabb.size
-	#inst.position = Vector3(0.5+x*0.25,0.5+y*0.25,0.5+z*0.25) * scaling - octree_data.aabb.size*0.5
 	bbox.mesh = box_mesh
 	bbox.visibility_range_end = 10.0
 	add_child(bbox)
