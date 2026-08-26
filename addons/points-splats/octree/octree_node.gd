@@ -166,6 +166,15 @@ func create_multimesh() -> void:
 		visual = MeshInstance3D.new()
 		visual.mesh = mesh
 		call_deferred("add_child", visual)
+	
+	# Currently, we don't need point data anymore as separate arrays
+	# Free the arrays to reduce memory load
+	_data_mutex.lock()
+	points.clear()
+	normals.clear()
+	colors.clear()
+	intensities.clear()
+	_data_mutex.unlock()
 
 
 ## should be visible is not the same as the Node3D visible variable
