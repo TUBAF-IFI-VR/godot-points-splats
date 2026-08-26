@@ -148,10 +148,12 @@ func load_pointdata(node: OctreeNode) -> bool:
 	if not file:
 		push_error("Failed to open point cloud data file: " + filename)
 		return false
+		
+	var has_color: bool = node.octree_data.attributes["color"]
 
 	node._data_mutex.lock()
 	node.points.resize(node.octree_data.point_count)
-	if node.octree_data.attributes["color"]:
+	if has_color:
 		node.colors.resize(node.octree_data.point_count)
 	node._data_mutex.unlock()
 
@@ -159,21 +161,25 @@ func load_pointdata(node: OctreeNode) -> bool:
 
 	var point_format = node.octree_data.format["point_format"]
 	var pos_offset = node.octree_data.offset - node.aabb.position - node.aabb.size * 0.5
+	var color_offset = color_data_offset[point_format]
+	var color_max = float(0xFFFF)
+	var point_bytes = node.octree_data.point_bytes
+	var scale = node.octree_data.scale
 
 	file.seek(self.point_data_offset)
 	for i in range(node.octree_data.point_count):
-		var buffer = file.get_buffer(node.octree_data.point_bytes)
+		var buffer = file.get_buffer(point_bytes)
 
 		var x = buffer.decode_s32(0)
 		var z = buffer.decode_s32(4)
 		var y = buffer.decode_s32(8)
 
-		node.points[i] = Vector3(x, y, z) * node.octree_data.scale + pos_offset
+		node.points[i] = Vector3(x, y, z) * scale + pos_offset
 
-		if node.octree_data.attributes["color"]:
-			var r = buffer.decode_u16(color_data_offset[point_format]) / float(0xFFFF)
-			var g = buffer.decode_u16(color_data_offset[point_format]+2) / float(0xFFFF)
-			var b = buffer.decode_u16(color_data_offset[point_format]+4) / float(0xFFFF)
+		if has_color:
+			var r = buffer.decode_u16(color_offset) / color_max
+			var g = buffer.decode_u16(color_offset+2) / color_max
+			var b = buffer.decode_u16(color_offset+4) / color_max
 			node.colors[i] = Color(r, g, b).srgb_to_linear()
 
 	node.octree_data.loaded_point_count = node.octree_data.point_count
