@@ -101,6 +101,9 @@ func load_metadata(filename: String) -> OctreeData:
 
 ## Load a subfile that describes the hierarchy of a new branch (or the root).
 func load_hierarchy(node: OctreeNode) -> bool:
+	# Benchmark loading times
+	var hrc_start = Time.get_unix_time_from_system()*1000.0
+	
 	# We start with the main hrc file and may have to traverse the tree for
 	# additional ones
 	var hrc_files = [[node, 1]]
@@ -124,15 +127,23 @@ func load_hierarchy(node: OctreeNode) -> bool:
 		var hrc_points = 0
 		var step_size = node.octree_data.step_size
 
+		# HRC files are small, we read it all at once
+		var buffer: PackedByteArray = file.get_buffer(file.get_length())
+		var buffer_size: int = buffer.size()
+		var buffer_offset: int = 0
+		file.close()
+
 		# Walk through the hrc file and push necessary subnodes into the queue
 		while len(next_nodes) > 0:
-			if file.eof_reached():
+			if buffer_offset >= buffer_size:
 				print("Error: reached end of hrc file before all nodes have been read!")
 				break
 			var current: OctreeNode = next_nodes.pop_front()
 
-			var node_mask = file.get_8()
-			var point_count = file.get_32()
+			var node_mask = buffer.decode_u8(buffer_offset)
+			var point_count = buffer.decode_u32(buffer_offset+1)
+			buffer_offset += 5
+
 			var base_aabb = current.aabb
 			base_aabb.size *= 0.5
 			hrc_points += point_count
@@ -181,26 +192,28 @@ func load_hierarchy(node: OctreeNode) -> bool:
 
 		var extra_bytes = 0
 		var _last_byte = -1
-		while !file.eof_reached():
+		while buffer_offset != buffer_size:
 			_last_byte = file.get_8()
 			extra_bytes += 1
 
 		# Validate the binary file
-		if extra_bytes != 1:
+		if extra_bytes != 0:
 			push_error(
 				"Invalid binary file size in '%s', %d bytes left to read!"
-				% [filename, extra_bytes - 1]
+				% [filename, extra_bytes]
 			)
 
 		if len(next_nodes) > 0:
 			push_error("Still %d unread nodes left for file '%s'!" % [len(next_nodes), filename])
 
-		file.close()
-
 		#print("Parsed hierarchy file '%s' with %d points in total." % [filename,hrc_points])
 		hrc_count += 1
 		sum_points += hrc_points
 		# End of single hrc file parsing
+
+	# Print measured loading time
+	var hrc_end = Time.get_unix_time_from_system()*1000.0
+	print("Loading octree hierarchy took %f ms." % (hrc_end-hrc_start))
 
 	print("Finished parsing %d hierarchy files with %d points in total." % [hrc_count, sum_points])
 	node.octree_data.point_count += sum_points
@@ -220,12 +233,10 @@ func _decode_normal_sphere(x: int, y: int) -> Vector3:
 	nx = nx * sqrt(l)
 	ny = ny * sqrt(l)
 
-
 	# Convert from 0/1 range to -1/+1
 	nx = nx * 2.0
 	ny = ny * 2.0
 	nz = nz * 2.0 - 1.0
-
 
 	return Vector3(nx, nz, ny).normalized()
 
@@ -279,45 +290,86 @@ func load_pointdata(node: OctreeNode) -> bool:
 		node.normals.resize(point_count)
 	node._data_mutex.unlock()
 
-	#var bb_scale =
-	var x = 0.0
-	var y = 0.0
-	var z = 0.0
+	# Prepare variables for binary reading
+	var points_read = 0
+	var point_bytes = node.octree_data.point_bytes
+	var chunk_points = min(50000, point_count)
+	var chunk_size = chunk_points * point_bytes
+	var expected_bytes = point_count * point_bytes
+	var version: float = node.octree_data.version
+
+	var x := 0.0; var y := 0.0; var z := 0.0
+	var scalex = node.octree_data.scale.x
+	var scaley = node.octree_data.scale.y
+	var scalez = node.octree_data.scale.z
+	var aabb_size: Vector3 = node.aabb.size * 0.5
+	var has_color: bool = node.octree_data.attributes["color"]
+	var has_normals: bool = node.octree_data.attributes["normal"]
+	var nx: int = 0; var ny: int = 0
+	var normal_oct16: bool = false
+	if has_normals and node.octree_data.format["normal_encoding"] == "NORMAL_OCT16":
+		normal_oct16 = true
+
+	var buffer: PackedByteArray = file.get_buffer(chunk_size)
+	var buffer_offset: int = 0
+	var buffer_size: int = buffer.size()
+	if buffer.size() != chunk_size:
+		push_error("Failed to read first Potree data chunk!")
+		return false
 
 	# There should be exactly point_count*point_bytes bytes in the file
 	# TODO: check with the point count read from the hrc file to validate
-	for i in range(point_count):
-		if file.eof_reached():
-			push_error("Failed to read point: reached end of file!")
+	while points_read < point_count:
+		# Read the next chunk
+		for i in range(chunk_points):
+			buffer_offset = i*point_bytes
+			if buffer_offset >= buffer_size:
+				push_error("Failed to read point: reached end of file!")
 
-		# TODO: not sure about the correct interpretation for specific versions
-		if node.octree_data.version > 1.3:
-			x = file.get_32() * node.octree_data.scale.x
-			z = file.get_32() * node.octree_data.scale.y
-			y = file.get_32() * node.octree_data.scale.z
-		else:
-			x = file.get_float()
-			z = file.get_float()
-			y = file.get_float()
-
-		# Arrange the points around the AABB's center
-		node.points[i] = Vector3(x, y, z) - node.aabb.size * 0.5
-
-		# Read color values if they exist in the bin file
-		if node.octree_data.attributes["color"]:
-			node.colors[i] = Color(
-				file.get_8() / 255.0,
-				file.get_8() / 255.0,
-				file.get_8() / 255.0,
-				1.0, #file.get_8()/255.0
-			).srgb_to_linear()
-			file.get_8()
-		# Read the normal vector if present
-		if node.octree_data.attributes["normal"]:
-			if node.octree_data.format["normal_encoding"] == "NORMAL_OCT16":
-				node.normals[i] = _decode_normal_oct16(file.get_8(), file.get_8())
+			# TODO: not sure about the correct interpretation for specific versions
+			if version  > 1.3:
+				x = buffer.decode_s32(buffer_offset) * scalex
+				z = buffer.decode_s32(buffer_offset+4) * scaley
+				y = buffer.decode_s32(buffer_offset+8) * scalez
 			else:
-				node.normals[i] = _decode_normal_sphere(file.get_8(), file.get_8())
+				x = buffer.decode_float(buffer_offset)
+				z = buffer.decode_float(buffer_offset+4)
+				y = buffer.decode_float(buffer_offset+8)
+
+			# Arrange the points around the AABB's center
+			node.points[points_read] = Vector3(x, y, z) - aabb_size
+
+			# Read color values if they exist in the bin file
+			if has_color:
+				node.colors[points_read] = Color(
+					buffer.decode_u8(buffer_offset+12) / 255.0,
+					buffer.decode_u8(buffer_offset+13) / 255.0,
+					buffer.decode_u8(buffer_offset+14) / 255.0,
+					1.0, #file.get_8()/255.0
+				).srgb_to_linear()
+				buffer_offset += 4
+			# Read the normal vector if present
+			if has_normals:
+				nx = buffer.decode_u8(buffer_offset+12)
+				ny = buffer.decode_u8(buffer_offset+13)
+				if normal_oct16:
+					node.normals[points_read] = _decode_normal_oct16(nx, ny)
+				else:
+					node.normals[points_read] = _decode_normal_sphere(nx, ny)
+
+			points_read += 1
+
+		# Prepare next chunk
+		if points_read >= point_count:
+			break
+
+		chunk_points = min(chunk_points, point_count - points_read)
+		chunk_size = chunk_points * point_bytes
+		buffer = file.get_buffer(chunk_size)
+		if buffer.size() != chunk_size:
+			push_error("Failed to read PLY chunk at point %d!" % points_read)
+			return false
+		buffer_offset = 0
 
 	# Check if all bytes have been read to validate the data
 	# There usually is a single 0 byte at the end
