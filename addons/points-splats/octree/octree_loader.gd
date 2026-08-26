@@ -11,12 +11,14 @@ class_name OctreeLoader
 enum DataTypes {
 	Potree,
 	LAS,
+	PLY,
 }
 
 ## Dictionary of available file loaders.
 const DataLoaders = {
 	"Potree": preload("../loaders/potree_loader.gd"),
 	"LAS": preload("../loaders/las_loader.gd"),
+	"PLY": preload("../loaders/ply_loader.gd"),
 }
 
 
