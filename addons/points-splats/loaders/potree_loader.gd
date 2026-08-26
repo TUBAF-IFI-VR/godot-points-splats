@@ -310,7 +310,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 				file.get_8() / 255.0,
 				file.get_8() / 255.0,
 				1.0, #file.get_8()/255.0
-			)
+			).srgb_to_linear()
 			file.get_8()
 		# Read the normal vector if present
 		if node.octree_data.attributes["normal"]:
