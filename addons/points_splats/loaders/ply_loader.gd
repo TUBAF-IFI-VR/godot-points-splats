@@ -1,7 +1,39 @@
-extends OctreeLoader
-
-## Load potree projects into the [OctreeNode] and [OctreeData] classes.
 class_name PLYLoader
+extends OctreeLoader
+## Load single PLY files into the [OctreeNode] and [OctreeData] classes.
+
+## Datatype cases for faster loading.
+##
+## Predefined cases include a float only format or float coordinates with
+## uint8 (uchar) encoded color values.
+##
+enum DatatypeCase {NONE=0, FLOAT, FLOAT_AND_UCHAR}
+
+## Copy of the common property types for convenience.
+const PropertyType := OctreeData.PropertyType
+
+## Copy of the common list of available integer types.
+const IntegerTypes: Array = OctreeData.IntegerTypes
+
+## Copy of the common type/byte size dictionary.
+const ByteSize: Dictionary = OctreeData.ByteSize
+
+## Map a string encoded type to the enum.
+const TypeMap: Dictionary = {
+	"char": PropertyType.INT8,
+	"uchar": PropertyType.UINT8,
+	"short": PropertyType.INT16,
+	"ushort": PropertyType.UINT16,
+	"int": PropertyType.INT32,
+	"uint": PropertyType.UINT32,
+	"float": PropertyType.FLOAT,
+	"double": PropertyType.DOUBLE,
+}
+
+## Spherical harmonics coefficients (normalization factors).
+const SH_C0 = 0.28209479177387814
+const SH_C1 = 0.4886025119029199
+
 
 ## Binary or ASCII encoded.
 var binary = false
@@ -17,22 +49,17 @@ var point_data_offset: int = 0
 ## Each element stores property information with datatypes, offsets and size in bytes.
 var elements: Dictionary = {}
 
+## Specifies if there is a common datatype structure used to speedup loading later.
+var datatype_case: DatatypeCase = DatatypeCase.NONE
+
 ## If there are no property lists, we can simplify the loading process.
 var has_property_lists = false
-
-## Datatype cases for faster loading.
-enum DatatypeCase {NONE=0, FLOAT, FLOAT_AND_UCHAR}
-var datatype_case: DatatypeCase = DatatypeCase.NONE
 
 ## Are integer values used for colors?.
 var integer_colors = false
 
 ## Degree of spherical harmonics (if used).
 var sh_degree: int = -1
-
-## Spherical harmonics coefficients (normalization factors).
-const SH_C0 = 0.28209479177387814
-const SH_C1 = 0.4886025119029199
 
 ## Line entry or byte offsets for the most common properties (position, normal, color).
 var offsets: Dictionary = {
@@ -48,41 +75,158 @@ var offsets: Dictionary = {
 }
 
 
-## Scalar types in PLY files.
-enum PropertyType { CHAR, UCHAR, SHORT, USHORT, INT, UINT, FLOAT, DOUBLE, LIST }
+## Load a main file describing the hierarchical point cloud.
+func load_metadata(filename: String) -> OctreeData:
+	# PLY loading is complex due to many possible formats
+	# Log the time for benchmarking
+	var start = Time.get_unix_time_from_system()*1000.0
 
-## Predifined list for integer properties.
-const IntegerTypes: Array = [PropertyType.CHAR, PropertyType.UCHAR, PropertyType.SHORT,\
-							PropertyType.USHORT, PropertyType.INT, PropertyType.UINT]
+	# Create an empty metadata class
+	var octree_data = OctreeData.new()
 
-## Map a string encoded type to the enum.
-const TypeMap: Dictionary = {
-	"char": PropertyType.CHAR,
-	"uchar": PropertyType.UCHAR,
-	"short": PropertyType.SHORT,
-	"ushort": PropertyType.USHORT,
-	"int": PropertyType.INT,
-	"uint": PropertyType.UINT,
-	"float": PropertyType.FLOAT,
-	"double": PropertyType.DOUBLE,
-}
+	print("Loading PLY file '%s'." % filename)
+
+	if filename.get_extension() != "ply":
+		return
+	octree_data.base_path = filename
+
+	# Start reading the file header
+	var file = FileAccess.open(filename, FileAccess.READ)
+	if not file:
+		push_error("Failed to open PLY file '%s'." % filename)
+		return null
+
+	# Header complete?
+	var header = _read_header(file)
+	if header.is_empty():
+		file.close()
+		return null
+
+	# Parse the header
+	if not _parse_header(header, octree_data):
+		return null
+	file.big_endian = big_endian
+
+	_skip_non_vertex_properties(file)
+	point_data_offset = file.get_position()
+
+	# Now concentrate on vertex properties only
+	if "vertex" not in elements:
+		push_error("There is no vertex data in the PLY file!")
+		return null
+	var properties = elements["vertex"]
+	octree_data.point_count = properties["__count__"]
+	if not _check_vertex_properties(properties, octree_data):
+		return null
+
+	# Check datatypes and offsets
+	# Byte offsets for binary version, line offsets for ascii version
+	var offset = _calculate_byte_offsets(properties, octree_data)
+	if offset < 0:
+		return null
+	octree_data.point_bytes = offset
+
+	# Retrieve bounding box
+	var ext_start = Time.get_unix_time_from_system()*1000.0
+	var aabb = _scan_extent(file, octree_data, properties)
+	var ext_end = Time.get_unix_time_from_system()*1000.0
+	file.close()
+
+	# Scale and offset are usually not used in PLY
+	# We use the AABB center as offset to align the point cloud to the origin
+	octree_data.scale = Vector3(1,1,1)
+	octree_data.offset = -aabb.get_center()
+
+	# TODO: Check point cloud extends
+	octree_data.aabb = aabb
+	octree_data.aabb_tight = octree_data.aabb
+	
+	# Store additional file format information
+	octree_data.format["binary"] = binary
+	octree_data.format["big_endian"] = big_endian
+	
+	var end = Time.get_unix_time_from_system()*1000.0
+	print("Preparing PLY took %f ms, %f ms for checking the extent." % [(end-start),ext_end-ext_start])
+	return octree_data
 
 
-## Number of bytes for a specific type string.
-const ByteSize = {
-	PropertyType.CHAR: 1,
-	PropertyType.UCHAR: 1,
-	PropertyType.SHORT: 2,
-	PropertyType.USHORT: 2,
-	PropertyType.INT: 4,
-	PropertyType.UINT: 4,
-	PropertyType.FLOAT: 4,
-	PropertyType.DOUBLE: 8,
-}
+## Load a subfile that describes the hierarchy of a new branch (or the root).
+func load_hierarchy(node: OctreeNode) -> bool:
+	#var sum_points = 0
+	var current = node
+	var base_aabb = current.aabb
+	base_aabb.size *= 0.5
+
+	current.path = current.octree_data.base_path
+
+	# We prepare one full set of octree nodes (although they are not used so far)
+	#for i in range(8):
+	#var child_index = current.id+str(i)
+	#
+	## Determine the correct octant
+	#var y = 1 if i&1 else -1
+	#var z = 1 if i&2 else -1
+	#var x = 1 if i&4 else -1
+	#
+	## Spawn the new child node and adjust its position
+	#var child:OctreeNode = OctreeNode.new(child_index, base_aabb, node.octree_data)
+	#
+	#child.position = base_aabb.size*Vector3(x,y,z)*0.5
+	#current.children[i] = child
+	##current.loading_queue.push_back(child)
+	#current.add_child(child)
+	return true
+
+
+## Load the actual point cloud data and store in a single node.
+func load_pointdata(node: OctreeNode) -> bool:
+	var filename = node.path
+
+	var file = FileAccess.open(filename, FileAccess.READ)
+	if not file:
+		push_error("Failed to open point cloud data file: " + filename)
+		return false
+
+	# Lock the data mutex befopre resizing the arrays
+	node._data_mutex.lock()
+	node.points.resize(node.octree_data.point_count)
+	if node.octree_data.has_attribute["normal"]:
+		node.normals.resize(node.octree_data.point_count)
+	if node.octree_data.has_attribute["color"]:
+		node.colors.resize(node.octree_data.point_count)
+	node._data_mutex.unlock()
+
+	print("Expecting %d points in '%s'..." % [node.octree_data.point_count,filename])
+
+	# Skip the header and start reading data
+	var properties = elements["vertex"]
+	file.seek(self.point_data_offset)
+	if binary and big_endian:
+		file.big_endian = true
+
+	# Decide which loading function to call
+	var result = false
+	var load_start = Time.get_unix_time_from_system()*1000.0
+	if binary and not has_property_lists:
+		result = _load_binary_simple(node, file, properties)
+	elif not binary:
+		result = _load_ascii(node, file, properties)
+	else:
+		push_error("File format not supported yet!")
+	
+	var load_end = Time.get_unix_time_from_system()*1000.0
+	print("Loading PLY took %f ms." % (load_end-load_start))
+
+	node.octree_data.loaded_point_count = node.octree_data.point_count
+	file.close()
+
+	return result
 
 
 ## Helper function to check present data types.
-# Are all specified properties floats?
+##
+## Are all specified properties floats?
+##
 func _all_of_type(properties: Dictionary, keys: Array[String], type: PropertyType) -> bool:
 	for key in keys:
 		if key in properties and properties[key]["type"] != type:
@@ -151,7 +295,7 @@ func _parse_header_property(line: String, properties: Dictionary) -> void:
 			return
 		
 		properties[name] = {
-			"type":PropertyType.LIST,
+			"type":PropertyType.ARRAY,
 			"len_type":len_type,
 			"data_type":data_type,
 		}
@@ -227,7 +371,7 @@ func _skip_non_vertex_properties(file: FileAccess) -> void:
 				continue
 			var p = elements[e][name]
 			# Lists in the vertex data make the loading process more complex!
-			if e == "vertex" and p["type"] == PropertyType.LIST:
+			if e == "vertex" and p["type"] == PropertyType.ARRAY:
 				has_property_lists = true
 				break
 		if e == "vertex":
@@ -242,14 +386,14 @@ func _skip_non_vertex_properties(file: FileAccess) -> void:
 
 				var p = elements[e][name]
 				# List or scalar value?
-				if p["type"] == PropertyType.LIST:
+				if p["type"] == PropertyType.ARRAY:
 					var len = 0
 					match p["len_type"]:
-						PropertyType.CHAR,PropertyType.UCHAR:
+						PropertyType.INT8,PropertyType.UINT8:
 							len = file.get_8()
-						PropertyType.SHORT,PropertyType.USHORT:
+						PropertyType.INT16,PropertyType.UINT16:
 							len = file.get_16()
-						PropertyType.INT,PropertyType.UINT:
+						PropertyType.INT32,PropertyType.UINT32:
 							len = file.get_32()
 					file.get_buffer(len * ByteSize[p["len_type"]])
 				else:
@@ -274,11 +418,11 @@ func _check_vertex_properties(properties: Dictionary, octree_data: OctreeData) -
 
 	# Normals will be ignored if a coordinate is missing
 	if "nx" in properties and "ny" in properties and "nz" in properties:
-		octree_data.attributes["normal"] = true
+		octree_data.has_attribute["normal"] = true
 
 	# We will use r,g,b for colors
 	if "r" in properties and "g" in properties and "b" in properties:
-		octree_data.attributes["color"] = true
+		octree_data.has_attribute["color"] = true
 
 	# Common data type cases are only valid for little endian so far
 	if big_endian:
@@ -288,10 +432,11 @@ func _check_vertex_properties(properties: Dictionary, octree_data: OctreeData) -
 	if _all_of_type(properties, ["x", "y", "z", "nx", "ny", "nz"], PropertyType.FLOAT):
 		if _all_of_type(properties, ["r", "g", "b"], PropertyType.FLOAT):
 			datatype_case = DatatypeCase.FLOAT
-		elif _all_of_type(properties, ["r", "g", "b"], PropertyType.UCHAR):
+		elif _all_of_type(properties, ["r", "g", "b"], PropertyType.UINT8):
 			datatype_case = DatatypeCase.FLOAT_AND_UCHAR
 
 	return true
+
 
 ## As we assume vertex data without lists so far, we can expect a fixed number of bytes per point.
 ##
@@ -309,7 +454,7 @@ func _calculate_byte_offsets(properties: Dictionary, octree_data: OctreeData) ->
 			continue
 
 		var p = properties[name]
-		if p["type"] == PropertyType.LIST:
+		if p["type"] == PropertyType.ARRAY:
 			continue
 		octree_data.format["properties"].append(name)
 
@@ -338,123 +483,25 @@ func _calculate_byte_offsets(properties: Dictionary, octree_data: OctreeData) ->
 		else:
 			offset += 1
 
-		p["unsigned"] = p["type"] in [PropertyType.UCHAR, PropertyType.USHORT, PropertyType.UINT]
+		p["unsigned"] = p["type"] in [PropertyType.UINT8, PropertyType.UINT16, PropertyType.UINT32]
 
 	return offset
 
 
-## Load a main file describing the hierarchical point cloud.
-func load_metadata(filename: String) -> OctreeData:
-	# PLY loading is complex due to many possible formats
-	# Log the time for benchmarking
-	var start = Time.get_unix_time_from_system()*1000.0
-
-	# Create an empty metadata class
-	var octree_data = OctreeData.new()
-
-	print("Loading PLY file '%s'." % filename)
-
-	if filename.get_extension() != "ply":
-		return
-	octree_data.base_path = filename
-
-	# Start reading the file header
-	var file = FileAccess.open(filename, FileAccess.READ)
-	if not file:
-		push_error("Failed to open PLY file '%s'." % filename)
-		return null
-
-	# Header complete?
-	var header = _read_header(file)
-	if header.is_empty():
-		file.close()
-		return null
-
-	# Parse the header
-	if not _parse_header(header, octree_data):
-		return null
-	file.big_endian = big_endian
-
-	_skip_non_vertex_properties(file)
-	point_data_offset = file.get_position()
-
-	# Now concentrate on vertex properties only
-	if "vertex" not in elements:
-		push_error("There is no vertex data in the PLY file!")
-		return null
-	var properties = elements["vertex"]
-	octree_data.point_count = properties["__count__"]
-	if not _check_vertex_properties(properties, octree_data):
-		return null
-
-	# Check datatypes and offsets
-	# Byte offsets for binary version, line offsets for ascii version
-	var offset = _calculate_byte_offsets(properties, octree_data)
-	if offset < 0:
-		return null
-	octree_data.point_bytes = offset
-
-	# Retrieve bounding box
-	var ext_start = Time.get_unix_time_from_system()*1000.0
-	var aabb = _scan_extent(file, octree_data, properties)
-	var ext_end = Time.get_unix_time_from_system()*1000.0
-	file.close()
-
-	# Scale and offset are usually not used in PLY
-	# We use the AABB center as offset to align the point cloud to the origin
-	octree_data.scale = Vector3(1,1,1)
-	octree_data.offset = -aabb.get_center()
-
-	# TODO: Check point cloud extends
-	octree_data.aabb = aabb
-	octree_data.aabb_tight = octree_data.aabb
-	
-	var end = Time.get_unix_time_from_system()*1000.0
-	print("Preparing PLY took %f ms, %f ms for checking the extent." % [(end-start),ext_end-ext_start])
-	return octree_data
-
-
-## Load a subfile that describes the hierarchy of a new branch (or the root).
-func load_hierarchy(node: OctreeNode) -> bool:
-	#var sum_points = 0
-	var current = node
-	var base_aabb = current.aabb
-	base_aabb.size *= 0.5
-
-	current.path = current.octree_data.base_path
-
-	# We prepare one full set of octree nodes (although they are not used so far)
-	#for i in range(8):
-	#var child_index = current.id+str(i)
-	#
-	## Determine the correct octant
-	#var y = 1 if i&1 else -1
-	#var z = 1 if i&2 else -1
-	#var x = 1 if i&4 else -1
-	#
-	## Spawn the new child node and adjust its position
-	#var child:OctreeNode = OctreeNode.new(child_index, base_aabb, node.octree_data)
-	#
-	#child.position = base_aabb.size*Vector3(x,y,z)*0.5
-	#current.children[i] = child
-	##current.loading_queue.push_back(child)
-	#current.add_child(child)
-	return true
-
 ## Decode a single attribute based on its datatype.
 func _decode_property(t: PropertyType, buffer: PackedByteArray, buffer_offset: int = 0) -> Variant:
 	match t:
-		PropertyType.CHAR:
+		PropertyType.INT8:
 			return buffer.decode_s8(buffer_offset)
-		PropertyType.UCHAR:
+		PropertyType.UINT8:
 			return buffer.decode_u8(buffer_offset)
-		PropertyType.SHORT:
+		PropertyType.INT16:
 			return buffer.decode_s16(buffer_offset)
-		PropertyType.USHORT:
+		PropertyType.UINT16:
 			return buffer.decode_u16(buffer_offset)
-		PropertyType.INT:
+		PropertyType.INT32:
 			return buffer.decode_s32(buffer_offset)
-		PropertyType.UINT:
+		PropertyType.UINT32:
 			return buffer.decode_u32(buffer_offset)
 		PropertyType.FLOAT:
 			return buffer.decode_float(buffer_offset)
@@ -470,17 +517,17 @@ func _decode_property_bigendian(t: PropertyType, buffer: PackedByteArray, \
 	var slice: PackedByteArray = buffer.slice(buffer_offset, buffer_offset + ByteSize[t])
 	slice.reverse()
 	match t:
-		PropertyType.CHAR:
+		PropertyType.INT8:
 			return slice.decode_s8(0)
-		PropertyType.UCHAR:
+		PropertyType.UINT8:
 			return slice.decode_u8(0)
-		PropertyType.SHORT:
+		PropertyType.INT16:
 			return slice.decode_s16(0)
-		PropertyType.USHORT:
+		PropertyType.UINT16:
 			return slice.decode_u16(0)
-		PropertyType.INT:
+		PropertyType.INT32:
 			return slice.decode_s32(0)
-		PropertyType.UINT:
+		PropertyType.UINT32:
 			return slice.decode_u32(0)
 		PropertyType.FLOAT:
 			return slice.decode_float(0)
@@ -608,6 +655,7 @@ func _scan_extent(file:FileAccess, octree_data:OctreeData, properties:Dictionary
 
 	return AABB(Vector3(minx, miny, minz), Vector3(maxx-minx, maxy-miny, maxz-minz))
 
+
 ## Read a binary PLY file (without property lists).
 func _load_binary_simple(node: OctreeNode, file: FileAccess, properties: Dictionary) -> bool:
 	var buffer: PackedByteArray
@@ -617,8 +665,8 @@ func _load_binary_simple(node: OctreeNode, file: FileAccess, properties: Diction
 	
 	# Reduce dictionary access during loop
 	var position_offset = node.octree_data.offset
-	var has_normal: bool = node.octree_data.attributes["normal"]
-	var has_color: bool = node.octree_data.attributes["color"]
+	var has_normal: bool = node.octree_data.has_attribute["normal"]
+	var has_color: bool = node.octree_data.has_attribute["color"]
 	var tx = properties["x"]["type"]
 	var ty = properties["y"]["type"]
 	var tz = properties["z"]["type"]
@@ -803,6 +851,7 @@ func _load_binary_simple(node: OctreeNode, file: FileAccess, properties: Diction
 
 	return true
 
+
 ## Read an ASCII PLY file (without property lists).
 func _load_ascii(node: OctreeNode, file: FileAccess, properties: Dictionary) -> bool:
 	var p: Vector3
@@ -810,8 +859,8 @@ func _load_ascii(node: OctreeNode, file: FileAccess, properties: Dictionary) -> 
 	
 	# Reduce dictionary access during loop
 	var position_offset = node.octree_data.offset
-	var has_normal: bool = node.octree_data.attributes["normal"]
-	var has_color: bool = node.octree_data.attributes["color"]
+	var has_normal: bool = node.octree_data.has_attribute["normal"]
+	var has_color: bool = node.octree_data.has_attribute["color"]
 	var ox = properties["x"]["offset"]
 	var oy = properties["y"]["offset"]
 	var oz = properties["z"]["offset"]
@@ -863,47 +912,3 @@ func _load_ascii(node: OctreeNode, file: FileAccess, properties: Dictionary) -> 
 				c = c*SH_C0 + color_offset
 			node.colors[i] = c.srgb_to_linear()
 	return true
-
-## Load the actual point cloud data and store in a single node.
-func load_pointdata(node: OctreeNode) -> bool:
-	var filename = node.path
-
-	var file = FileAccess.open(filename, FileAccess.READ)
-	if not file:
-		push_error("Failed to open point cloud data file: " + filename)
-		return false
-
-	# Lock the data mutex befopre resizing the arrays
-	node._data_mutex.lock()
-	node.points.resize(node.octree_data.point_count)
-	if node.octree_data.attributes["normal"]:
-		node.normals.resize(node.octree_data.point_count)
-	if node.octree_data.attributes["color"]:
-		node.colors.resize(node.octree_data.point_count)
-	node._data_mutex.unlock()
-
-	print("Expecting %d points in '%s'..." % [node.octree_data.point_count,filename])
-
-	# Skip the header and start reading data
-	var properties = elements["vertex"]
-	file.seek(self.point_data_offset)
-	if binary and big_endian:
-		file.big_endian = true
-
-	# Decide which loading function to call
-	var result = false
-	var load_start = Time.get_unix_time_from_system()*1000.0
-	if binary and not has_property_lists:
-		result = _load_binary_simple(node, file, properties)
-	elif not binary:
-		result = _load_ascii(node, file, properties)
-	else:
-		push_error("File format not supported yet!")
-	
-	var load_end = Time.get_unix_time_from_system()*1000.0
-	print("Loading PLY took %f ms." % (load_end-load_start))
-
-	node.octree_data.loaded_point_count = node.octree_data.point_count
-	file.close()
-
-	return result

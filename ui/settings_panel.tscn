@@ -1,0 +1,108 @@
+[gd_scene format=3 uid="uid://c7hjifbqc8r54"]
+
+[node name="SettingsPanel" type="PanelContainer" unique_id=1896670597]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -160.0
+offset_right = 240.0
+grow_vertical = 0
+size_flags_vertical = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=622277302]
+layout_mode = 2
+
+[node name="LabelPoints" type="Label" parent="VBoxContainer" unique_id=1376024239]
+layout_mode = 2
+text = "Total points: 0"
+
+[node name="LabelLoadedPoints" type="Label" parent="VBoxContainer" unique_id=123510484]
+layout_mode = 2
+text = "Loaded points: 0"
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1457681956]
+layout_mode = 2
+
+[node name="HBoxFlip" type="HBoxContainer" parent="VBoxContainer" unique_id=1944874317]
+layout_mode = 2
+
+[node name="CheckFlipX" type="CheckButton" parent="VBoxContainer/HBoxFlip" unique_id=2023608692]
+layout_mode = 2
+text = "Flip X"
+
+[node name="LabelUpAxis" type="Label" parent="VBoxContainer/HBoxFlip" unique_id=1082936461]
+layout_mode = 2
+text = "Up Axis:"
+
+[node name="OptionUpAxis" type="OptionButton" parent="VBoxContainer/HBoxFlip" unique_id=1778799340]
+layout_mode = 2
+selected = 0
+item_count = 4
+popup/item_0/text = "Y"
+popup/item_0/id = 0
+popup/item_1/text = "-Y"
+popup/item_1/id = 1
+popup/item_2/text = "Z"
+popup/item_2/id = 2
+popup/item_3/text = "-Z"
+popup/item_3/id = 3
+
+[node name="LabelPointSize" type="Label" parent="VBoxContainer" unique_id=1978417601]
+layout_mode = 2
+text = "Point size:"
+
+[node name="HBoxPointSize" type="HBoxContainer" parent="VBoxContainer" unique_id=1143150703]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="VBoxContainer/HBoxPointSize" unique_id=215361313]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+step = 0.5
+value = 15.0
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxPointSize" unique_id=918287960]
+layout_mode = 2
+text = "0 mm"
+
+[node name="LabelvisibilityRange" type="Label" parent="VBoxContainer" unique_id=1647322296]
+layout_mode = 2
+text = "Initial visibility range:"
+
+[node name="HBoxVisibilityRange" type="HBoxContainer" parent="VBoxContainer" unique_id=1006572804]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="VBoxContainer/HBoxVisibilityRange" unique_id=595460428]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 2.0
+value = 20.0
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxVisibilityRange" unique_id=1262975387]
+layout_mode = 2
+
+[node name="LabelProjectionThreshold" type="Label" parent="VBoxContainer" unique_id=64753964]
+layout_mode = 2
+text = "Projection threshold :"
+
+[node name="HBoxProjectionThreshold" type="HBoxContainer" parent="VBoxContainer" unique_id=114670686]
+layout_mode = 2
+
+[node name="HSlider" type="HSlider" parent="VBoxContainer/HBoxProjectionThreshold" unique_id=181425350]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 5.0
+value = 200.0
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxProjectionThreshold" unique_id=1163835016]
+layout_mode = 2
+
+[node name="CheckAdaptiveSize" type="CheckButton" parent="VBoxContainer" unique_id=1903972498]
+layout_mode = 2
+button_pressed = true
+text = "Adaptive point size:    "
+
+[node name="CheckShowDebug" type="CheckButton" parent="VBoxContainer" unique_id=1778121145]
+layout_mode = 2
+text = "Show debug objects:    "

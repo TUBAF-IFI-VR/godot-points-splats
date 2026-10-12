@@ -1,38 +1,49 @@
 @tool
-extends Node3D
-
-## Main class for octree data structures.
+@icon("../ui/octree.svg")
 class_name Octree
+extends Node3D
+## Main class for octree data structures.
+##
+## This node functions as a general parent to the whole octree structure. The actual octree
+## hierarchy will be composed of [OctreeNode] instances. The octree root node will be a direct
+## child.
+##
 
+## Detected or specified file type to select the correct loader.
 @export var data_type: OctreeLoader.DataTypes
-@export var max_threads: int = 4 ## Maximum number of additional threads (0=system maximum-1)
-var data_loader: OctreeLoader = null ## Data loader that should be used.
+
+## Maximum number of additional threads (0 = system maximum - 1).
+@export var max_threads: int = 4
+
 var root: OctreeNode = null ## Root node
 var octree_data: OctreeData = null ## Metadata
+var data_loader: OctreeLoader = null ## Data loader that should be used.
 var loading_queue: Array = [] ## Sub nodes that have to be loaded
 var _loading_thread_count: int = 1 ## Number of threads that will be used for point loading
 var _loading_threads: Array = [] ## Array of threads performing point loading
 var _loading_mutex: Mutex ## Protect loading queue
 var _loading_stopped: bool = false ## Notify the loading threads to exit
 
-## Complete bounding box
+## Complete bounding box.
 var aabb: AABB:
 	get:
 		return octree_data.aabb
 
-## Total number of points in point cloud
+## Total number of points in point cloud.
 var point_count: int:
 	get:
 		return octree_data.point_count
 
-## Currently loaded number of points
+## Currently loaded number of points.
 var loaded_point_count: int:
 	get:
 		return octree_data.loaded_point_count
 
 ## Path to the root directory of the octree (location of JSON file).
-## TODO: update octree if path has changed.
-@export_file_path var octree_path: String = "":
+## The current octree (if present) will be destroyed and replaced when the
+## has been updated.
+@export_file_path
+var octree_path: String = "":
 	set(value):
 		if root:
 			free_octree()
@@ -41,32 +52,40 @@ var loaded_point_count: int:
 		load_octree()
 
 ## The rendered point size in mm, can be adapted in the editor.
-@export_range(0.5, 100.0, 0.5) var point_size: float = 15.0:
+@export_range(0.5, 100.0, 0.5)
+var point_size: float = 15.0:
 	set(value):
 		point_size = value
 		if octree_data:
 			octree_data.quad_material.set_shader_parameter("point_size", value)
 
-@export_range(1.0, 100) var initial_visibility_range: float = 100.0:
+## Visiblity range in meters for the top level nodes (below the root) to become visible.
+@export_range(1.0, 100)
+var initial_visibility_range: float = 100.0:
 	set(value):
 		initial_visibility_range = value
 		if octree_data:
 			octree_data.initial_visibility_range = value
 
-## Threshold to trigger visiblity of a subnode (in % of screen size)
-@export_range(0.01, 2.0, 0.01) var projection_size_threshold: float = 0.2:
+## Threshold to trigger visiblity of a subnode (in % of screen size).
+@export_range(0.01, 2.0, 0.01)
+var projection_size_threshold: float = 0.2:
 	set(value):
 		projection_size_threshold = value
 		if octree_data:
 			octree_data.projection_size_threshold = value
 
-@export var adaptive_point_size: bool = true:
+## If enabled, points will scale up with increasing distance to fill holes.
+@export
+var adaptive_point_size: bool = true:
 	set(value):
 		adaptive_point_size = value
 		if octree_data:
 			octree_data.quad_material.set_shader_parameter("adaptive_point_size", value)
 
-@export var show_debug_objects: bool = false:
+## If enabled, additional objects such as octree cell boundaries will be displayed.
+@export
+var show_debug_objects: bool = false:
 	set(value):
 		show_debug_objects = value
 		if octree_data:
@@ -77,11 +96,11 @@ func _init() -> void:
 	pass
 
 
-## Load and setup data structure on scene load
 func _ready() -> void:
 	pass
 
 
+## Destroy the octree and free allocated ressources.
 func _exit_tree() -> void:
 	free_octree()
 
@@ -104,26 +123,30 @@ func _loading_loop() -> void:
 			OS.delay_msec(50)
 
 
-## Load a point cloud file
+## Load a point cloud file.
 func load_octree() -> void:
 	data_loader = OctreeLoader.get_loader(data_type)
 
-	if (
-		octree_path.is_empty()
-		or (
-			!DirAccess.dir_exists_absolute(octree_path) \
-					and !FileAccess.file_exists(octree_path)
-		)
-	):
+	if (octree_path.is_empty()
+			or (
+				!DirAccess.dir_exists_absolute(octree_path)
+				and !FileAccess.file_exists(octree_path)
+			)):
 		return
 
 	octree_data = data_loader.load_metadata(octree_path)
+	if not octree_data:
+		push_error("Failed to parse point cloud metadata! "
+			+ "Make sure you selected the correct loader and a compatible file.")
+		return
+
 	octree_data.quad_material.set_shader_parameter("point_size", point_size)
 	octree_data.initial_visibility_range = initial_visibility_range
 	octree_data.projection_size_threshold = projection_size_threshold
 	octree_data.request_subnode.connect(self.request_subnode)
 	octree_data.defer_subnode.connect(self.defer_subnode)
 
+	# Create a root node and use the Potree naming scheme.
 	root = OctreeNode.new("r", aabb, octree_data)
 	data_loader.load_hierarchy(root)
 	data_loader.load_pointdata(root)
@@ -140,6 +163,7 @@ func load_octree() -> void:
 	if max_threads > 0:
 		_loading_thread_count = min(max_threads, _loading_thread_count)
 
+	# Prepare the allowed number of loading threads.
 	_loading_mutex = Mutex.new()
 	for i in _loading_thread_count:
 		var t = Thread.new()
@@ -158,7 +182,8 @@ func free_octree() -> void:
 			t.wait_to_finish()
 
 	# Free the created loader and data structure
-	data_loader.free()
+	if data_loader != null:
+		data_loader.free()
 	data_loader = null
 
 	remove_child(root)

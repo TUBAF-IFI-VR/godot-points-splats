@@ -1,17 +1,35 @@
+class_name MetricLogger
 extends Node
+## A very basic helper node to collect some performane metrics.
 
 
+## Slect the logging mode to use.
+##
+## Logging can be permanent with a specific rate, triggered by key press
+## or whenever a camera checkpoint has been reached.
 enum LoggingMode {Permanent, OnKeyPress, OnCameraEvent}
 
-@export var enabled : bool = false					## Processing is disabled by default
-@export var octree : Octree = null			## Reference to the logged octree
-@export var logging_mode : LoggingMode = LoggingMode.Permanent 	## Create only a log entry if enter was presssed
-@export var logging_rate : float = 2.0		## Number of seconds between 2 log entries
-@export var camera_recorder : CameraReplay = null	## Optional reference to a camera replay recorder
 
-var log_file: FileAccess
-var log_timer := 0.0
+@export var enabled : bool = false ## Processing is disabled by default
+@export var octree : Octree = null ## Reference to the logged octree
 
+## Collect metrics permanently by default
+@export var logging_mode : LoggingMode = LoggingMode.Permanent 
+
+## Number of seconds between 2 log entries
+@export var logging_rate : float = 2.0
+
+## Optional reference to a camera replay recorder
+@export var camera_recorder : CameraReplay = null
+
+## Log file that has been opened for writing.
+var _log_file: FileAccess
+
+## Internal counter for the timer mechanism.
+var _log_timer := 0.0
+
+
+## Prepare an empty log file.
 func _ready() -> void:
 	if not enabled:
 		set_process(false)
@@ -22,15 +40,17 @@ func _ready() -> void:
 
 	var file_path := folder_path + "performance_profile.csv"
 
-	log_file = FileAccess.open(file_path, FileAccess.WRITE)
-	log_file.store_line("time,fps,process_ms,memory_mb,video_memory_mb,objects_drawn,"+\
+	_log_file = FileAccess.open(file_path, FileAccess.WRITE)
+	_log_file.store_line("time,fps,process_ms,memory_mb,video_memory_mb,objects_drawn,"+\
 						"primitives_drawn,draw_calls,objects,nodes,viewport_width,viewport_height,"+\
 						"point_count,loaded_point_count,visibility_range,point_size,threshold")
-	log_file.flush()
+	_log_file.flush()
 	
 	if logging_mode == LoggingMode.OnCameraEvent and camera_recorder:
 		camera_recorder.reached_next_pos.connect(self.log_performance_data)
 
+
+## Trigger logging by key pressed if enabled.
 func _input(event: InputEvent) -> void:
 	if logging_mode != LoggingMode.OnKeyPress or camera_recorder == null:
 		return
@@ -40,18 +60,22 @@ func _input(event: InputEvent) -> void:
 			log_performance_data()
 			camera_recorder.record_camera_location()
 
+
+## Write permanently to the log file if enabled.
 func _process(delta: float) -> void:
 	if logging_mode != LoggingMode.Permanent:
 		return
 		
-	log_timer += delta
+	_log_timer += delta
 
-	if log_timer >= logging_rate:
-		log_timer = 0.0
+	if _log_timer >= logging_rate:
+		_log_timer = 0.0
 		log_performance_data()
 
+
+## Add a new entry to the log file.
 func log_performance_data() -> void:
-	if log_file == null:
+	if _log_file == null:
 		return
 
 	if octree == null:
@@ -97,12 +121,14 @@ func log_performance_data() -> void:
 		str(threshold)
 	]
 
-	log_file.store_line(",".join(row_data))
+	_log_file.store_line(",".join(row_data))
 
+
+## Flush and close the opened log file.
 func _exit_tree() -> void:
 	if not enabled:
 		return
 	
-	log_file.flush()
-	if log_file != null:
-		log_file.close()
+	_log_file.flush()
+	if _log_file != null:
+		_log_file.close()

@@ -1,13 +1,14 @@
-extends OctreeLoader
-
-## Load potree projects into the [OctreeNode] and [OctreeData] classes
 class_name LASLoader
+extends OctreeLoader
+## Load single LAS files into the [OctreeNode] and [OctreeData] classes.
 
-## Offset to point data from file start
-var point_data_offset: int = 0
 
 ## Offset to RGB values depends on the point format
 const color_data_offset = { 2: 20, 3: 28, 5: 28, 7: 30, 8: 30 }
+
+
+## Offset to point data from file start
+var _point_data_offset: int = 0
 
 
 ## Load a main file describing the hierarchical point cloud.
@@ -95,15 +96,15 @@ func load_metadata(filename: String) -> OctreeData:
 	# print(bbmin, bbmax, octree_data.aabb)
 
 	# Check data format
-	point_data_offset = header.decode_u32(96)
+	_point_data_offset = header.decode_u32(96)
 	var point_format = header[104]
 	var point_record_len = header.decode_u16(105)
 
 	octree_data.format["point_format"] = point_format
 	octree_data.point_bytes = point_record_len
-	octree_data.attributes["intensity"] = true
-	if point_format == 2 or point_format == 3:
-		octree_data.attributes["color"] = true
+	octree_data.has_attribute["intensity"] = true
+	if point_format in color_data_offset.keys():
+		octree_data.has_attribute["color"] = true
 
 	print("Detected point format #%d." % point_format)
 
@@ -149,7 +150,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 		push_error("Failed to open point cloud data file: " + filename)
 		return false
 		
-	var has_color: bool = node.octree_data.attributes["color"]
+	var has_color: bool = node.octree_data.has_attribute["color"]
 
 	node._data_mutex.lock()
 	node.points.resize(node.octree_data.point_count)
@@ -161,12 +162,12 @@ func load_pointdata(node: OctreeNode) -> bool:
 
 	var point_format = node.octree_data.format["point_format"]
 	var pos_offset = node.octree_data.offset - node.aabb.position - node.aabb.size * 0.5
-	var color_offset = color_data_offset[point_format]
+	var color_offset = color_data_offset[point_format] if has_color else -1
 	var color_max = float(0xFFFF)
 	var point_bytes = node.octree_data.point_bytes
 	var scale = node.octree_data.scale
 
-	file.seek(self.point_data_offset)
+	file.seek(self._point_data_offset)
 	for i in range(node.octree_data.point_count):
 		var buffer = file.get_buffer(point_bytes)
 

@@ -1,19 +1,21 @@
 [gd_scene format=3 uid="uid://claby38o5j0mx"]
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
-[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://addons/points-splats/octree/octree.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://addons/points_splats/octree/octree.gd" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
-[ext_resource type="Texture2D" uid="uid://b2g0f8nfwde31" path="res://folder-open.svg" id="5_272bh"]
-[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://metric_logger.gd" id="5_lquwl"]
-[ext_resource type="Texture2D" uid="uid://d2kbr4avxgbs6" path="res://sliders-horizontal.svg" id="6_5vw27"]
+[ext_resource type="PackedScene" uid="uid://c7hjifbqc8r54" path="res://ui/settings_panel.tscn" id="5_272bh"]
+[ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://testing/metric_logger.gd" id="5_lquwl"]
+[ext_resource type="PackedScene" uid="uid://cad5ryd8xu6h1" path="res://ui/tool_bar.tscn" id="6_5vw27"]
+[ext_resource type="Script" uid="uid://cfyb3xvefq5hb" path="res://testing/camera_replay.gd" id="8_5vw27"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_ig7tw"]
 size = Vector2(5, 5)
 orientation = 1
 
-[node name="Main" type="Node3D" unique_id=184997138]
+[node name="Main" type="Node3D" unique_id=184997138 node_paths=PackedStringArray("octree")]
 script = ExtResource("1_h2yge")
+octree = NodePath("Octree")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=387857699]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 4.6821747)
@@ -24,7 +26,7 @@ move_speed = 0.1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
 mesh = SubResource("QuadMesh_ig7tw")
 
-[node name="gizmo" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
+[node name="WorldOrigin" parent="." unique_id=1332236384 instance=ExtResource("2_0xm2m")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 visible = false
 
@@ -34,154 +36,19 @@ octree_path = "res://lion_takanawa/cloud.js"
 initial_visibility_range = 10.0
 projection_size_threshold = 0.4
 
-[node name="Panel" type="PanelContainer" parent="." unique_id=1106988670]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_top = -160.0
-offset_right = 240.0
-grow_vertical = 0
-size_flags_vertical = 8
+[node name="SettingsPanel" parent="." unique_id=1896670597 instance=ExtResource("5_272bh")]
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=611320019]
-layout_mode = 2
+[node name="ToolBar" parent="." unique_id=30576717 instance=ExtResource("6_5vw27")]
 
-[node name="LabelPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1544910594]
-layout_mode = 2
-text = "Total points: 0"
-
-[node name="LabelLoadedPoints" type="Label" parent="Panel/VBoxContainer" unique_id=1556816497]
-layout_mode = 2
-text = "Loaded points: 0"
-
-[node name="HSeparator" type="HSeparator" parent="Panel/VBoxContainer" unique_id=1369083054]
-layout_mode = 2
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=2021711099]
-layout_mode = 2
-
-[node name="CheckFlipX" type="CheckButton" parent="Panel/VBoxContainer/HBoxContainer" unique_id=466772050]
-layout_mode = 2
-text = "Flip X"
-
-[node name="LabelUpAxis" type="Label" parent="Panel/VBoxContainer/HBoxContainer" unique_id=838928656]
-layout_mode = 2
-text = "Up Axis:"
-
-[node name="OptionUpAxis" type="OptionButton" parent="Panel/VBoxContainer/HBoxContainer" unique_id=1190679498]
-layout_mode = 2
-selected = 0
-item_count = 4
-popup/item_0/text = "Y"
-popup/item_0/id = 0
-popup/item_1/text = "-Y"
-popup/item_1/id = 1
-popup/item_2/text = "Z"
-popup/item_2/id = 2
-popup/item_3/text = "-Z"
-popup/item_3/id = 3
-
-[node name="LabelPointSize" type="Label" parent="Panel/VBoxContainer" unique_id=208281412]
-layout_mode = 2
-text = "Point size:"
-
-[node name="HBoxPointSize" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=187394094]
-layout_mode = 2
-
-[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=1258691268]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.5
-step = 0.5
-value = 15.0
-
-[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxPointSize" unique_id=187009120]
-layout_mode = 2
-text = "0 mm"
-
-[node name="LabelvisibilityRange" type="Label" parent="Panel/VBoxContainer" unique_id=510482021]
-layout_mode = 2
-text = "Initial visibility range:"
-
-[node name="HBoxVisibilityRange" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=736838258]
-layout_mode = 2
-
-[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=243475262]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 2.0
-value = 20.0
-
-[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxVisibilityRange" unique_id=1294363447]
-layout_mode = 2
-
-[node name="LabelProjectionThreshold" type="Label" parent="Panel/VBoxContainer" unique_id=331433958]
-layout_mode = 2
-text = "Projection threshold :"
-
-[node name="HBoxProjectionThreshold" type="HBoxContainer" parent="Panel/VBoxContainer" unique_id=300806439]
-layout_mode = 2
-
-[node name="HSlider" type="HSlider" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1682315344]
-layout_mode = 2
-size_flags_horizontal = 3
-max_value = 200.0
-step = 5.0
-value = 200.0
-
-[node name="Label" type="Label" parent="Panel/VBoxContainer/HBoxProjectionThreshold" unique_id=1200553193]
-layout_mode = 2
-
-[node name="CheckAdaptiveSize" type="CheckButton" parent="Panel/VBoxContainer" unique_id=1504346175]
-layout_mode = 2
-button_pressed = true
-text = "Adaptive point size:    "
-
-[node name="CheckShowDebug" type="CheckButton" parent="Panel/VBoxContainer" unique_id=724598076]
-layout_mode = 2
-text = "Show debug objects:    "
-
-[node name="FileDialog" type="FileDialog" parent="Panel" unique_id=1000562092]
+[node name="FileDialog" type="FileDialog" parent="." unique_id=1000562092]
 size = Vector2i(800, 560)
-
-[node name="MenuPanel" type="PanelContainer" parent="." unique_id=1119591642]
-offset_left = 3.0
-offset_top = 2.0
-offset_right = 87.0
-offset_bottom = 44.0
-
-[node name="MenuHBoxContainer" type="HBoxContainer" parent="MenuPanel" unique_id=1473166358]
-clip_contents = true
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="OpenFileButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=185512126]
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Open file"
-icon = ExtResource("5_272bh")
-expand_icon = true
-
-[node name="SlidersButton" type="Button" parent="MenuPanel/MenuHBoxContainer" unique_id=2013885030]
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Show/hide settings"
-icon = ExtResource("6_5vw27")
-expand_icon = true
 
 [node name="MetricLogger" type="Node" parent="." unique_id=1177513302 node_paths=PackedStringArray("octree", "camera_recorder")]
 script = ExtResource("5_lquwl")
-octree = NodePath("../Octree")
 logging_mode = 1
 logging_rate = 1.0
+octree = NodePath("../Octree")
 camera_recorder = NodePath("../CameraReplay")
 
 [node name="CameraReplay" type="Node" parent="." unique_id=699033679]
-
-[connection signal="pressed" from="Panel/VBoxContainer/HBoxContainer/CheckFlipX" to="." method="_on_orientation_changed"]
-[connection signal="item_selected" from="Panel/VBoxContainer/HBoxContainer/OptionUpAxis" to="." method="_on_orientation_changed"]
-[connection signal="value_changed" from="Panel/VBoxContainer/HBoxPointSize/HSlider" to="." method="_on_pointsize_value_changed"]
-[connection signal="value_changed" from="Panel/VBoxContainer/HBoxVisibilityRange/HSlider" to="." method="_on_visibility_range_value_changed"]
-[connection signal="value_changed" from="Panel/VBoxContainer/HBoxProjectionThreshold/HSlider" to="." method="_projection_size_threshold_value_changed"]
-[connection signal="toggled" from="Panel/VBoxContainer/CheckAdaptiveSize" to="." method="_adaptive_point_size_changed"]
-[connection signal="toggled" from="Panel/VBoxContainer/CheckShowDebug" to="." method="_show_debug_objects_changed"]
+script = ExtResource("8_5vw27")

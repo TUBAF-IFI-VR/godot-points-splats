@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://cad5ryd8xu6h1"]
+
+[ext_resource type="Texture2D" uid="uid://b2g0f8nfwde31" path="res://ui/folder-open.svg" id="1_8m3lv"]
+[ext_resource type="Texture2D" uid="uid://d2kbr4avxgbs6" path="res://ui/sliders-horizontal.svg" id="2_px08c"]
+
+[node name="ToolBar" type="PanelContainer" unique_id=30576717]
+offset_left = 3.0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 44.0
+
+[node name="MenuHBoxContainer" type="HBoxContainer" parent="." unique_id=2054925896]
+clip_contents = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="OpenFileButton" type="Button" parent="MenuHBoxContainer" unique_id=301529466]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Open file"
+icon = ExtResource("1_8m3lv")
+expand_icon = true
+
+[node name="SlidersButton" type="Button" parent="MenuHBoxContainer" unique_id=338200405]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Show/hide settings"
+icon = ExtResource("2_px08c")
+expand_icon = true

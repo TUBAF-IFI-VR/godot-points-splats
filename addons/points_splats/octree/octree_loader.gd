@@ -1,11 +1,11 @@
-extends Object
-
 ## Base class for specific point cloud loaders.
 ##
 ## Inherit from this class to implement new data loaders for a specific file
 ## format.
 ##
 class_name OctreeLoader
+extends Object
+
 
 ## Available loaders for specific file / hierarchy formats.
 enum DataTypes {
@@ -13,6 +13,7 @@ enum DataTypes {
 	LAS,
 	PLY,
 }
+
 
 ## Dictionary of available file loaders.
 const DataLoaders = {
@@ -28,22 +29,22 @@ static func get_loader(data_type: DataTypes) -> OctreeLoader:
 	return loader_script.new()
 
 
-## Load a main file describing the hierarchical point cloud.
+## Load a main file describing the hierarchical point cloud. (virtual method)
 func load_metadata(_filename: String) -> OctreeData:
 	return null
 
 
-## Load a subfile describe the hierarchy of a new branch (or the root).
+## Load a subfile describe the hierarchy of a new branch (or the root). (virtual method)
 func load_hierarchy(_node: OctreeNode) -> bool:
 	return false
 
 
-## Load the actual point cloud data and store in a single node.
+## Load the actual point cloud data and store in a single node. (virtual method)
 func load_pointdata(_node: OctreeNode) -> bool:
 	return false
 
 
-## Prepare a valid AABB by switching axes if size is negative
+## Prepare a valid AABB by switching axes if size is negative.
 func get_valid_aabb(a: Vector3, b: Vector3) -> AABB:
 	var minv: Vector3 = a.min(b)
 	var maxv: Vector3 = a.max(b)
