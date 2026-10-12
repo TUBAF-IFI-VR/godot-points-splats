@@ -24,9 +24,10 @@ Please note that large-scale PLY or LAS files might significantly slow down the 
 The project is prepared with a simple UI to tweak LOD settings. By default the lion_takanawa dataset from the Potree examples will be loaded from the project's resources. Use the tool buttons in the top-left corner to open another point cloud or to hide the settings panel.
 
 ## Adjusting the Settings
-(based on visibility range and a projected size threshold)
-For large-scale scenes, a lower visibility range (in meters) is beneficial, while compact scenes of individual objects could require a high range value to trigger loading of deeper octree nodes earlier.
-A good projected size (in percent of screen coverage) depends on the octree's depth and the AABB's extent. Adjust the point size (in mm) to your needs. Currently, point spacing is not detected automatically. Higher visibility ranges can be compensated for by adjusting the point size to fill gaps.
+Progressive loading and LOD are based on visibility ranges (in meters) and a projected-size threshold (percentage of screen coverage).
+For large-scale scenes, a higher visibility range may be needed, while compact scenes of individual objects could benefit from a lower visibility range to render very dense nodes only at close range.
+A suitable projected size depends on the octree's depth and the AABB's extent. If you set the threshold too high in the case of large-scale scenes, deeper nodes could become visible too early as their projected AABB fills a lot of the user's view.
+Currently, point spacing is not detected automatically. Higher visibility ranges can be compensated for by adjusting the point size to fill gaps.
 
 ## Limitations
 Currently, all supported file formats will be rendered as points only. Correct rendering and blending of Gaussian splats has not yet been integrated.
