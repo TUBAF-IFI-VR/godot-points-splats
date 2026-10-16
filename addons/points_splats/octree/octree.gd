@@ -182,12 +182,13 @@ func free_octree() -> void:
 			t.wait_to_finish()
 
 	# Free the created loader and data structure
-	if data_loader != null:
+	if data_loader:
 		data_loader.free()
 	data_loader = null
 
-	remove_child(root)
-	root.queue_free()
+	if root:
+		remove_child(root)
+		root.queue_free()
 	root = null
 
 	octree_data = null
