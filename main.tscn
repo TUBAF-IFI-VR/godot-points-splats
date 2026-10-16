@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c2mpnrlpfdf55" path="res://main.gd" id="1_h2yge"]
 [ext_resource type="Script" uid="uid://cro8443uj6dch" path="res://addons/points_splats/octree/octree.gd" id="1_ig7tw"]
-[ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://gizmo.glb" id="2_0xm2m"]
+[ext_resource type="PackedScene" uid="uid://c42n4obpqw77q" path="res://ui/gizmo.glb" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://bug0wnu1ybi3u" path="res://flying_camera.gd" id="2_1bvp3"]
 [ext_resource type="PackedScene" uid="uid://c7hjifbqc8r54" path="res://ui/settings_panel.tscn" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cq312534yp2ei" path="res://testing/metric_logger.gd" id="5_lquwl"]
@@ -32,7 +32,7 @@ visible = false
 
 [node name="Octree" type="Node3D" parent="." unique_id=278494610]
 script = ExtResource("1_ig7tw")
-octree_path = "res://lion_takanawa/cloud.js"
+octree_path = "res://examples/lion_takanawa/cloud.js"
 initial_visibility_range = 10.0
 projection_size_threshold = 0.4
 
@@ -45,9 +45,9 @@ size = Vector2i(800, 560)
 
 [node name="MetricLogger" type="Node" parent="." unique_id=1177513302 node_paths=PackedStringArray("octree", "camera_recorder")]
 script = ExtResource("5_lquwl")
+octree = NodePath("../Octree")
 logging_mode = 1
 logging_rate = 1.0
-octree = NodePath("../Octree")
 camera_recorder = NodePath("../CameraReplay")
 
 [node name="CameraReplay" type="Node" parent="." unique_id=699033679]
