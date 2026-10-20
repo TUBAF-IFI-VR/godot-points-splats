@@ -45,7 +45,7 @@ func load_pointdata(_node: OctreeNode) -> bool:
 
 
 ## Prepare a valid AABB by switching axes if size is negative.
-func get_valid_aabb(a: Vector3, b: Vector3) -> AABB:
+static func get_valid_aabb(a: Vector3, b: Vector3) -> AABB:
 	var minv: Vector3 = a.min(b)
 	var maxv: Vector3 = a.max(b)
 
