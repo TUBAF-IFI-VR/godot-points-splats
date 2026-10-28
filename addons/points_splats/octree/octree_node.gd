@@ -40,6 +40,15 @@ var depth: int = 0
 ## Point spacing in this octree cell.
 var spacing: float = 0.0
 
+## Number of points.
+var num_points: int = 0
+
+## Location in the related binary file.
+var byte_offset: int = 0
+
+## Data size in the related binary file in bytes. 
+var byte_size: int = 0
+
 # Point attribute storage
 var points: PackedVector3Array ## Position data
 var normals: PackedVector3Array ## Normal vectors

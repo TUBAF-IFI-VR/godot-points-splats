@@ -80,6 +80,7 @@ var offset: Vector3
 
 var point_count: int = 0 ## Total number of points in point cloud.
 var loaded_point_count: int = 0 ## Currently loaded number of points.
+var node_count: int = 0 ## Total number if nodes in the octree hierarchy.
 
 ## Calculated number of bytes per data point.
 var point_bytes = 0
