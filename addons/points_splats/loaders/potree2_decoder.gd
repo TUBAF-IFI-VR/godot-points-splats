@@ -103,25 +103,25 @@ func load_hierarchy(node: OctreeNode) -> bool:
 	# 4. byte offset: 8  byte (offset in hierarchy.bin for proxy nodes or octree.bin for all other)
 	# 5. byte size: 8 byte (size of the related data block in a .bin file)
 	
-	# For now we start with the first chunk only
+	# For now we read the whole hierarchy immediately including all proxy nodes
 	const bytes_per_node: int = 22
+	var sum_points: int = 0
+	var sum_nodes: int = 0
+	var bytes_read: int = 0
 	var chunk_size: int = node.octree_data.format["firstChunkSize"]
-	var chunk_nodes: int = chunk_size / bytes_per_node
+	var next_branches: Array[Dictionary] = [{
+		"proxy": node,
+		"offset": 0,
+		"size": chunk_size,
+	}]
+	
+	# Prepare variables
+	var chunk_nodes: int = 0
+	var next_nodes: Array[OctreeNode]
+	var current: OctreeNode
 	var buffer: PackedByteArray = file.get_buffer(chunk_size)
 	var buffer_size: int = buffer.size()
 	var buffer_offset: int = 0
-	var next_nodes: Array[OctreeNode]
-	
-	var sum_points: int = 0
-	var sum_nodes: int = 0
-
-	# Was there enough data to read?
-	if buffer_size != chunk_size:
-		push_error("Failed to read hierarchy chunk of size '%d'!" % chunk_size)
-		return false
-
-	# Prepare variables
-	var current: OctreeNode
 	var chunk_pos: int
 	var type: int
 	var node_mask: int
@@ -131,98 +131,114 @@ func load_hierarchy(node: OctreeNode) -> bool:
 	var y
 	var z
 	
-	# Prepare the node array to avoid resizing during runtime
-	next_nodes.resize(chunk_nodes)
-	next_nodes[0] = node
-	chunk_pos = 1
+	# Initialize root AABB center
+	node.center_offset = node.aabb.size*0.5
 
-	# Process all nodes in the current chunk
-	for i in chunk_nodes:
-		# Get next node form the queue
-		current = next_nodes[i]
-		
-		# Read node data from buffer
-		type = buffer.decode_u8(buffer_offset)
-		node_mask = buffer.decode_u8(buffer_offset+1)
-		current.num_points = buffer.decode_u32(buffer_offset+2)
-		current.byte_offset = buffer.decode_u64(buffer_offset+6)
-		current.byte_size = buffer.decode_u64(buffer_offset+14)
-		buffer_offset += bytes_per_node
-		
-		# DEBUG
-		if _debug_print:
-			var textmask = "0x"
-			for j in range(7,-1,-1):
-				textmask += "1" if (node_mask & (1<<j)) else "0"
-			print("id: %s, type: %d, mask: %s, num_points: %d" % 
-					[current.id, type, textmask, current.num_points])
-		
-		# Additional check for faulty datasets
-		if current.byte_size == 0:
-			current.num_points = 0
-		
-		# We don't count proxy nodes for now
-		if type != 2:
-			sum_points += current.num_points
+	# Are there unprocessed proxy nodes?
+	while len(next_branches) > 0:
+		# Get information about the next chunk
+		var branch = next_branches.pop_front()
+		chunk_size = branch["size"]
+		chunk_nodes = chunk_size / bytes_per_node
+		file.seek(branch["offset"])
+		buffer = file.get_buffer(chunk_size)
+		buffer_size = buffer.size()
+		buffer_offset = 0
+		bytes_read += buffer_size
 
-		# Ignore proxy nodes for the moment, only process inner nodes
-		if type == 0:
-			child_aabb = current.aabb
-			child_aabb.size *= 0.5
+		# Was there enough data to read?
+		if buffer_size != chunk_size:
+			push_error("Failed to read hierarchy chunk of size '%d'!" % chunk_size)
+			return false
+
+		# Prepare the node array to avoid resizing during runtime
+		next_nodes.resize(chunk_nodes)
+		next_nodes[0] = branch["proxy"]
+		chunk_pos = 1
+
+		# Process all nodes in the current chunk
+		for i in chunk_nodes:
+			# Get next node form the queue
+			current = next_nodes[i]
 			
-			# Check the node mask and spawn necessary subnodes as children
-			for j in range(8):
-				if node_mask & (1 << j):
-					child_index = current.id + str(j)
+			# Read node data from buffer
+			type = buffer.decode_u8(buffer_offset)
+			node_mask = buffer.decode_u8(buffer_offset+1)
+			current.point_count = buffer.decode_u32(buffer_offset+2)
+			current.byte_offset = buffer.decode_u64(buffer_offset+6)
+			current.byte_size = buffer.decode_u64(buffer_offset+14)
+			buffer_offset += bytes_per_node
+			
+			# DEBUG
+			if _debug_print:
+				var textmask = "0x"
+				for j in range(7,-1,-1):
+					textmask += "1" if (node_mask & (1<<j)) else "0"
+				print("id: %s, type: %d, mask: %s, point_count: %d" % 
+						[current.id, type, textmask, current.point_count])
+			
+			# Additional check for faulty datasets
+			if current.byte_size == 0:
+				current.point_count = 0
+			
+			# We don't count proxy nodes for now
+			if type != 2:
+				sum_points += current.point_count
 
-					# Determine the correct octant
-					y = 1 if j & 1 else -1
-					z = 1 if j & 2 else -1
-					x = 1 if j & 4 else -1
+			# Process child nodes of inner octree nodes (type 0)
+			if type == 0:
+				child_aabb = current.aabb
+				child_aabb.size *= 0.5
+				
+				# Check the node mask and spawn necessary subnodes as children
+				for j in range(8):
+					if node_mask & (1 << j):
+						child_index = current.id + str(j)
 
-					# Create the new child node
-					var child: OctreeNode = OctreeNode.new(
-						child_index,
-						child_aabb,
-						node.octree_data,
-					)
-					
-					child.path = current.path
-					child.position = child_aabb.size * Vector3(x, y, z) * 0.5
-					child.spacing = current.spacing * 0.5
+						# Determine the correct octant
+						y = 1 if j & 1 else -1
+						z = 1 if j & 2 else -1
+						x = 1 if j & 4 else -1
 
-					# Lock the mutex before writing data to the queue
-					current._data_mutex.lock()
-					current.children[j] = child
-					current.loading_queue.push_back(child)
-					current.add_child(child)
-					current._data_mutex.unlock()
-					next_nodes[chunk_pos] = child
-					chunk_pos += 1
-		elif type == 2:
-			# TODO: Just a placeholder!
-			print("Found proxy node!")
+						# Create the new child node
+						var child: OctreeNode = OctreeNode.new(
+							child_index,
+							child_aabb,
+							node.octree_data,
+						)
+						
+						child.path = current.path
+						child.position = child_aabb.size * Vector3(x, y, z) * 0.5
+						child.center_offset = current.center_offset + child.position
+						child.spacing = current.spacing * 0.5
 
-	sum_nodes += chunk_nodes
+						# Lock the mutex before writing data to the queue
+						current._data_mutex.lock()
+						current.children[j] = child
+						current.loading_queue.push_back(child)
+						current.add_child(child)
+						current._data_mutex.unlock()
+						next_nodes[chunk_pos] = child
+						chunk_pos += 1
+			# Push proxy nodes to the queue of unprocessed branches
+			elif type == 2:
+				# Add proxy node to the queue
+				next_branches.push_back({
+					"proxy": current,
+					"offset": current.byte_offset,
+					"size": current.byte_size,
+				})
+			# Leaf nodes need no further processing
+
+		sum_nodes += chunk_nodes
 	
 	# Check if all bytes have been read to validate the data
-	# There is usually a single 0 byte at the end
-	var extra_bytes = 0
-	var last_byte = -1
-	while !file.eof_reached():
-		last_byte = file.get_8()
-		extra_bytes += 1
-	file.close()
-
-	# Validate the binary file
-	if extra_bytes != 1 or last_byte != 0:
+	if bytes_read != file.get_length():
 		push_error(
-			"Invalid binary file size in '%s', %d bytes left to read!"
-			% [filename, extra_bytes - 1]
+			"Parsing of hierarchy '%s' is incomplete, %d bytes left to read!"
+			% [filename, file.get_length() - bytes_read]
 		)
-	
-	#if sum_nodes < nodes.size():
-	#	push_error("Still %d unread nodes left for file '%s'!" % [nodes.size()-sum_nodes, filename])
+	file.close()
 
 	# Update the information in [OctreeData] if necessary
 	if node.octree_data.format.get("missing_point_count", false):
@@ -249,26 +265,31 @@ func load_pointdata(node: OctreeNode) -> bool:
 	# Go to the first byte of the requested chunk
 	file.seek(node.byte_offset)
 	var buffer: PackedByteArray = file.get_buffer(node.byte_size)
-	var byte_per_point = node.byte_size / node.num_points
+	# Was there enough data to read?
+	if buffer.size() != node.byte_size:
+		push_error("Failed to read point data chunk of size '%d'!" % node.byte_size)
+		return false
 
 	# Create and resize the necessary data arrays
 	node._data_mutex.lock()
 	node.points = PackedVector3Array()
-	node.points.resize(node.num_points)
+	node.points.resize(node.point_count)
 	if node.octree_data.has_attribute["color"]:
 		node.colors = PackedColorArray()
-		node.colors.resize(node.num_points)
+		node.colors.resize(node.point_count)
 	if node.octree_data.has_attribute["normal"]:
 		node.normals = PackedVector3Array()
-		node.normals.resize(node.num_points)
+		node.normals.resize(node.point_count)
 	node._data_mutex.unlock()
 
 	# Prepare variables
+	var point_bytes = node.octree_data.point_bytes
+	var byte_pos: int
+	var pos_scale: Vector3 = node.octree_data.scale
+	var pos_offset: Vector3 = node.octree_data.offset - node.center_offset
 	var x = 0.0
 	var y = 0.0
 	var z = 0.0
-	var pos_offset: Vector3 = node.octree_data.offset - node.aabb.size*0.5
-	var byte_pos: int
 	var r = 0.0
 	var g = 0.0
 	var b = 0.0
@@ -276,12 +297,12 @@ func load_pointdata(node: OctreeNode) -> bool:
 	var color_scale: float = 1.0 / 0xFFFF
 
 	# Decode position and color data for all points of the current chunk
-	for i in node.num_points:
-		byte_pos = i*byte_per_point
+	for i in node.point_count:
+		byte_pos = i*point_bytes
 		x = buffer.decode_s32(byte_pos)
 		z = buffer.decode_s32(byte_pos+4)
 		y = buffer.decode_s32(byte_pos+8)
-		node.points[i] = Vector3(x,y,z) * node.octree_data.scale + pos_offset
+		node.points[i] = Vector3(x,y,z) * pos_scale + pos_offset
 
 		if node.octree_data.attributes["color"]:
 			r = buffer.decode_u16(byte_pos+color_byte_offset) * color_scale
@@ -289,20 +310,8 @@ func load_pointdata(node: OctreeNode) -> bool:
 			b = buffer.decode_u16(byte_pos+color_byte_offset+4) * color_scale
 			node.colors[i] = Color(r,g,b).srgb_to_linear()
 	
-	# Check if all bytes have been read to validate the data
-	# There usually is a single 0 byte at the end
-	var extra_bytes = 0
-	var last_byte = -1
-	while !file.eof_reached():
-		last_byte = file.get_8()
-		extra_bytes += 1
 	file.close()
-
-	# Validate the binary file
-	if extra_bytes != 1 or last_byte != 0:
-		push_error(
-			"Invalid binary file size in '%s', %d bytes left to read!"
-			% [filename, extra_bytes - 1]
-		)
+	
+	node.octree_data.loaded_point_count += node.point_count
 	
 	return true
