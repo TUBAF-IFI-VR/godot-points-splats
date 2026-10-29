@@ -57,6 +57,7 @@ func load_metadata(filename: String) -> OctreeData:
 		_decoder = DecoderPotreeV1.new(_debug_analyze_hrc, _debug_print)
 	else:
 		_decoder = DecoderPotreeV2.new(_debug_analyze_hrc, _debug_print)
+	print("Loading Potree %.1f dataset '%s'." % [version, filename])
 	
 	# Store general metadata if available
 	octree_data.format["version"] = version
@@ -105,7 +106,7 @@ func load_hierarchy(node: OctreeNode) -> bool:
 	var hrc_end = Time.get_unix_time_from_system()*1000.0
 	print("Loading octree hierarchy took %f ms." % (hrc_end-hrc_start))
 
-	print("Finished parsing %d hierarchy nodes with %d points in total." % 
+	print("Parsing finished: %d hierarchy nodes comprising %d points." % 
 		[node.octree_data.node_count,
 		node.octree_data.point_count])
 
