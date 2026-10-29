@@ -72,6 +72,10 @@ var aabb: AABB ## Bounding box of the point cloud.
 var aabb_tight: AABB ## Optional tight bounding box, currently unused.
 var spacing: float = 0.0 ## Spacing between the points of the root node.
 
+## The scale value of the visual representation. This value will be updated automatically by the
+## [Octree] class.
+var visual_scale = Vector3(1,1,1)
+
 ## Global scale applied to position data values.
 var scale: Vector3
 
@@ -128,6 +132,15 @@ var quad_material = preload("../materials/render_quad.tres").duplicate()
 
 ## Enable/Disable additional visual elements.
 var show_debug_objects: bool = false
+
+## Cached camera position for fast projected screen size checks.
+var _camera_pos: Vector3
+
+## Precalculated value tan(camera_fov*0.5) to speedup projected screen size checks.
+##
+## The default value rougly relates to a 16:9 FOV. It will be updated during runtime by the 
+## [Octree] class.
+var _camera_fov_tan: float = 0.16
 
 ## Visibility range value for the top level nodes with a custom setter.
 var _initial_visibility_range: float

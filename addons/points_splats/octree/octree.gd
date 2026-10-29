@@ -15,30 +15,6 @@ extends Node3D
 ## Maximum number of additional threads (0 = system maximum - 1).
 @export var max_threads: int = 4
 
-var root: OctreeNode = null ## Root node
-var octree_data: OctreeData = null ## Metadata
-var data_loader: OctreeLoader = null ## Data loader that should be used.
-var loading_queue: Array = [] ## Sub nodes that have to be loaded
-var _loading_thread_count: int = 1 ## Number of threads that will be used for point loading
-var _loading_threads: Array = [] ## Array of threads performing point loading
-var _loading_mutex: Mutex ## Protect loading queue
-var _loading_stopped: bool = false ## Notify the loading threads to exit
-
-## Complete bounding box.
-var aabb: AABB:
-	get:
-		return octree_data.aabb
-
-## Total number of points in point cloud.
-var point_count: int:
-	get:
-		return octree_data.point_count
-
-## Currently loaded number of points.
-var loaded_point_count: int:
-	get:
-		return octree_data.loaded_point_count
-
 ## Path to the root directory of the octree (location of JSON file).
 ## The current octree (if present) will be destroyed and replaced when the
 ## has been updated.
@@ -91,6 +67,36 @@ var show_debug_objects: bool = false:
 		if octree_data:
 			octree_data.show_debug_objects = value
 
+var root: OctreeNode = null ## Root node
+var octree_data: OctreeData = null ## Metadata
+var data_loader: OctreeLoader = null ## Data loader that should be used.
+var loading_queue: Array = [] ## Sub nodes that have to be loaded
+var _loading_thread_count: int = 1 ## Number of threads that will be used for point loading
+var _loading_threads: Array = [] ## Array of threads performing point loading
+var _loading_mutex: Mutex ## Protect loading queue
+var _loading_stopped: bool = false ## Notify the loading threads to exit
+
+## Complete bounding box.
+var aabb: AABB:
+	get:
+		if octree_data:
+			return octree_data.aabb
+		return AABB(Vector3.ZERO, Vector3.ZERO)
+
+## Total number of points in point cloud.
+var point_count: int:
+	get:
+		if octree_data:
+			return octree_data.point_count
+		return -1
+
+## Currently loaded number of points.
+var loaded_point_count: int:
+	get:
+		if octree_data:
+			return octree_data.loaded_point_count
+		return -1
+
 
 func _init() -> void:
 	pass
@@ -106,7 +112,16 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
-	pass
+	octree_data.visual_scale = self.scale
+	
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var camera := viewport.get_camera_3d()
+	if camera == null:
+		return
+	octree_data._camera_pos = camera.global_position
+	octree_data._camera_fov_tan = tan(deg_to_rad(camera.fov)*0.5)
 
 
 ## Wait for new nodes until loading ended, meant to be executed by individal threads
@@ -143,6 +158,7 @@ func load_octree() -> void:
 	octree_data.quad_material.set_shader_parameter("point_size", point_size)
 	octree_data.initial_visibility_range = initial_visibility_range
 	octree_data.projection_size_threshold = projection_size_threshold
+	octree_data.show_debug_objects = show_debug_objects
 	octree_data.request_subnode.connect(self.request_subnode)
 	octree_data.defer_subnode.connect(self.defer_subnode)
 
@@ -153,6 +169,7 @@ func load_octree() -> void:
 	root.create_multimesh()
 
 	add_child(root)
+	#position = -aabb.get_center()
 
 	# Only load deeper nodes if not in editor mode
 	if Engine.is_editor_hint():
@@ -176,7 +193,9 @@ func load_octree() -> void:
 func free_octree() -> void:
 	# Stop the loading process
 	_loading_stopped = true
+	_loading_mutex.lock()
 	loading_queue.clear()
+	_loading_mutex.unlock()
 	for t in _loading_threads:
 		if t.is_started():
 			t.wait_to_finish()
@@ -192,6 +211,7 @@ func free_octree() -> void:
 	root = null
 
 	octree_data = null
+	position = Vector3.ZERO
 
 
 ## Add child to the loading queue

@@ -11,7 +11,7 @@ extends Node3D
 
 
 ## Time to periodically check whether children should be loaded or not.
-const seconds_next_check: float = 0.5
+const seconds_next_visibility_check: float = 0.5
 
 ## Controls how visibility range will decrease with octree depth.
 ##
@@ -34,6 +34,12 @@ static var bbox_mesh: BoxMesh = null
 ## ID encoded as string (prefixed with IDs of higher order nodes).
 var id: String = ""
 
+## Center of this octree cell in global coordinates.
+var center = Vector3.ZERO
+
+## Position offset relative to the octree root's center.
+var center_offset = Vector3.ZERO
+
 ## Depth in the point cloud hierarchy.
 var depth: int = 0
 
@@ -41,7 +47,7 @@ var depth: int = 0
 var spacing: float = 0.0
 
 ## Number of points.
-var num_points: int = 0
+var point_count: int = 0
 
 ## Location in the related binary file.
 var byte_offset: int = 0
@@ -82,8 +88,14 @@ var is_loaded := false
 ## Protect the node's data while loading.
 var _data_mutex: Mutex
 
+## Precalculate the AABB radius.
+var _aabb_radius: float = 1.0
+
+## Keeps the configured projection size threshold to reduce property calls of [OctreeData].
+var _projection_size_threshold: float = 0.3
+
 ## Seconds since last projection/visiblity check.
-var _last_check: float = 0.0 
+var _last_visibility_check: float = 0.0
 
 # The following containers manage all child nodes and child nodes queued for loading on demand.
 # TODO: improve loading queue approach? (currently per node queue and global queue in [Octree])
@@ -118,6 +130,8 @@ func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 
 	self.id = p_id
 	self.aabb = p_aabb
+	self.center = aabb.get_center()
+	self._aabb_radius = aabb.size.length() * 0.5
 	self.depth = p_id.length() - 1
 	
 	self._data_mutex = Mutex.new()
@@ -126,8 +140,10 @@ func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 ## Setup the node when entering the scene tree.
 func _ready() -> void:
 	_create_bbox()
+	center = to_global(aabb.get_center())
 
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
+	octree_data.projection_size_threshold_changed.connect(_on_projection_size_value_changed)
 
 	# TODO: load children in a breadth-first approach!
 	if not notifier:
@@ -141,25 +157,28 @@ func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 
+	if !notifier or !notifier.is_on_screen():
+		return
+
 	if octree_data.show_debug_objects != bbox.visible:
 		bbox.visible = octree_data.show_debug_objects
 
 	# Load only the visible children
-	if loading_queue.size() > 0 and _last_check < seconds_next_check:
+	if loading_queue.size() > 0 and _last_visibility_check >= seconds_next_visibility_check:
 		var child = null
 		var i = 0
 		while i < loading_queue.size():
 			child = loading_queue[i]
-			if child._is_important_enough_to_load() and child.notifier.is_on_screen():
+			if child.notifier.is_on_screen() and child._is_important_enough_to_load():
 				_data_mutex.lock()
 				loading_queue.remove_at(i)
 				octree_data.request_subnode.emit(child)
 				_data_mutex.unlock()
 			else:
 				i += 1
-		_last_check = 0
+		_last_visibility_check = 0.0
 	else:
-		_last_check += delta
+		_last_visibility_check += delta
 
 
 ## Create the actual visual node, which is usually a [MultiMeshInstance3D].
@@ -240,10 +259,22 @@ func create_multimesh() -> void:
 ## Create a new bounding box mesh and scale it to the current nodes AABB
 func _create_bbox():
 	bbox = MeshInstance3D.new()
+	bbox.position = aabb.position + aabb.size*0.5
 	bbox.scale = aabb.size
 	bbox.mesh = bbox_mesh
 	bbox.visibility_range_end = 10.0
+	bbox.visible = octree_data.show_debug_objects
 	add_child(bbox)
+	
+	var test = MeshInstance3D.new()
+	test.mesh = SphereMesh.new()
+	var scalef = 1.0/(depth+2.0)
+	test.scale = Vector3(scalef,scalef,scalef)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0,0.7/(depth+1.0),0.6)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	test.material_override = mat
+	add_child(test)
 
 
 ## Apply a new visibility range value to all visual representations of this node.
@@ -265,51 +296,20 @@ func _get_range_end_from_level(level: int) -> float:
 			pow(visibility_range_scale, level - 1)
 
 
-## Rect to changes of the visiblity range, for example by UI elements.
+## React to changes of the visiblity range, for example by UI inputs.
 func _on_visibility_range_value_changed(_value: float) -> void:
 	if visual != null:
 		_apply_visibility_range(visual, depth)
 
 
-## @unused Check if the node is within the defined visiblity range.
-func _is_within_visibility_range() -> bool:
-	var camera := get_viewport().get_camera_3d()
-	if camera == null:
-		return false
-
-	var range_end := _get_range_end_from_level(depth)
-
-	if range_end <= 0.0:
-		return true
-
-	var node_center := aabb.get_center()
-	var distance := camera.global_position.distance_to(node_center)
-
-	return distance <= range_end + visibility_margin
-
-
-## Calculate the convered screen area as a percentage value.
-func _get_projected_size(camera: Camera3D) -> float:
-	var distance := camera.global_position.distance_to(aabb.get_center())
-	var radius := aabb.size.length() * 0.5
-	var fov_rad := deg_to_rad(camera.fov)
-	var slope = tan(fov_rad * 0.5)
-
-	# Screen height is only necessary for absolute pixel values
-	#var screen_height := get_viewport().get_visible_rect().size.y
-	return radius / (slope * distance)
+## React to changes of the projected size threshold, for example by UI inputs.
+func _on_projection_size_value_changed(_value: float) -> void:
+	_projection_size_threshold = _value
 
 
 ## Check if the calculated screen converage is above or equal to the defined threshold.
 func _is_important_enough_to_load() -> bool:
-	var viewport := get_viewport()
-	if viewport == null:
-		return false
+	var distance: float = octree_data._camera_pos.distance_to(center)
+	var projected_size: float = _aabb_radius / (octree_data._camera_fov_tan * distance)
 
-	var camera := viewport.get_camera_3d()
-	if camera == null:
-		return false
-
-	var projected_size := _get_projected_size(camera)
-
-	return projected_size >= octree_data.projection_size_threshold
+	return projected_size >= _projection_size_threshold
