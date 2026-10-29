@@ -121,10 +121,10 @@ func load_metadata(filename: String) -> OctreeData:
 
 	# Check datatypes and offsets
 	# Byte offsets for binary version, line offsets for ascii version
-	var offset = _calculate_byte_offsets(properties, octree_data)
-	if offset < 0:
+	var byte_offset = _calculate_byte_offsets(properties, octree_data)
+	if byte_offset < 0:
 		return null
-	octree_data.point_bytes = offset
+	octree_data.point_bytes = byte_offset
 
 	# Retrieve bounding box
 	var ext_start = Time.get_unix_time_from_system()*1000.0
@@ -134,8 +134,8 @@ func load_metadata(filename: String) -> OctreeData:
 
 	# Scale and offset are usually not used in PLY
 	# We use the AABB center as offset to align the point cloud to the origin
-	octree_data.scale = Vector3(1,1,1)
-	octree_data.offset = -aabb.get_center()
+	octree_data.scale = Vector3.ONE
+	octree_data.offset = Vector3.ZERO
 
 	# TODO: Check point cloud extends
 	octree_data.aabb = aabb
