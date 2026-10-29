@@ -161,7 +161,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 	print("Expecting %d points in '%s'..." % [node.octree_data.point_count,filename])
 
 	var point_format = node.octree_data.format["point_format"]
-	var pos_offset = node.octree_data.offset - node.aabb.position - node.aabb.size * 0.5
+	var pos_offset = node.octree_data.offset
 	var color_offset = color_data_offset[point_format] if has_color else -1
 	var color_max = float(0xFFFF)
 	var point_bytes = node.octree_data.point_bytes
