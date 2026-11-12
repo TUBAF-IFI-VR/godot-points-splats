@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cqtxvtrlw8wjm"]
+
+[ext_resource type="Shader" uid="uid://cuko1ok7dm41k" path="res://addons/points_splats/materials/octree_box.gdshader" id="1_235cj"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_235cj")
+shader_parameter/albedo_color = Color(0.99999994, 0.39709675, 0.22041705, 1)
