@@ -27,6 +27,7 @@ The project is prepared with a simple UI to tweak LOD settings. By default the l
 Progressive loading and LOD are based on visibility ranges (in meters) and a projected-size threshold (percentage of screen coverage).
 By default, the visibility range will be divided by 2 at every level for the next deeper octree nodes. The octree nodes at depth 1 (children of the root) start with the initial visiblity range setting.
 For large-scale scenes with high octree depth, a higher initial visibility range may be needed, while compact scenes of individual objects could benefit from a lower visibility range to render very dense nodes only at close range.
+
 A suitable projected size depends on the octree's depth and the AABB's extent. If you set the threshold too low in the case of large-scale scenes, deeper nodes could become visible too early as their projected AABB fills a lot of the user's view. In most cases 15 to 40 percent is a good setting.
 Currently, point spacing is not detected automatically. Very sparse areas can be compensated by adjusting the point size to fill gaps. The adaptive point size setting will increase the point size if the camera is far away.
 
