@@ -92,6 +92,8 @@ func load_metadata(filename: String) -> OctreeData:
 	bbmin.y = header.decode_double(219)
 
 	octree_data.aabb = get_valid_aabb(bbmin, bbmax)
+	octree_data.aabb_tight = get_valid_aabb(bbmin, bbmax)
+	octree_data.aabb_center = octree_data.aabb.get_center()
 	# DEBUG:
 	# print(bbmin, bbmax, octree_data.aabb)
 
@@ -161,8 +163,8 @@ func load_pointdata(node: OctreeNode) -> bool:
 	print("Expecting %d points in '%s'..." % [node.octree_data.point_count,filename])
 
 	var point_format = node.octree_data.format["point_format"]
-	var pos_offset = node.octree_data.offset
-	var color_offset = color_data_offset[point_format] if has_color else -1
+	var pos_offset = -node.octree_data.aabb_center
+	var color_byte_offset = color_data_offset[point_format] if has_color else -1
 	var color_max = float(0xFFFF)
 	var point_bytes = node.octree_data.point_bytes
 	var scale = node.octree_data.scale
@@ -178,9 +180,9 @@ func load_pointdata(node: OctreeNode) -> bool:
 		node.points[i] = Vector3(x, y, z) * scale + pos_offset
 
 		if has_color:
-			var r = buffer.decode_u16(color_offset) / color_max
-			var g = buffer.decode_u16(color_offset+2) / color_max
-			var b = buffer.decode_u16(color_offset+4) / color_max
+			var r = buffer.decode_u16(color_byte_offset) / color_max
+			var g = buffer.decode_u16(color_byte_offset+2) / color_max
+			var b = buffer.decode_u16(color_byte_offset+4) / color_max
 			node.colors[i] = Color(r, g, b).srgb_to_linear()
 
 	node.octree_data.loaded_point_count = node.octree_data.point_count

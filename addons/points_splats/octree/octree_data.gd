@@ -70,6 +70,7 @@ var base_path: String = "" ## Path to the main (metadata) file of a dataset.
 var data_dir: String = "" ## Directory where the point data is stored.
 var aabb: AABB ## Bounding box of the point cloud.
 var aabb_tight: AABB ## Optional tight bounding box, currently unused.
+var aabb_center: Vector3 ## Precomputed center of the bounding box.
 var spacing: float = 0.0 ## Spacing between the points of the root node.
 
 ## The scale value of the visual representation. This value will be updated automatically by the

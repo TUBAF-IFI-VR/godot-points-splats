@@ -43,6 +43,7 @@ func load_attributes(metadata: Dictionary, octree_data: OctreeData) -> bool:
 	# TODO: aabb_tight was present in old Potree 1.x datasets, probably we can remove it...
 	octree_data.aabb = OctreeLoader.get_valid_aabb(bb_min, bb_max)
 	octree_data.aabb_tight = octree_data.aabb
+	octree_data.aabb_center = octree_data.aabb.get_center()
 
 	# We start with expected byte count of 0
 	octree_data.point_bytes = 0
@@ -189,6 +190,7 @@ func load_hierarchy(node: OctreeNode) -> bool:
 			if type == 0:
 				child_aabb = current.aabb
 				child_aabb.size *= 0.5
+				child_aabb.position = -child_aabb.size * 0.5
 				
 				# Check the node mask and spawn necessary subnodes as children
 				for j in range(8):
@@ -286,7 +288,7 @@ func load_pointdata(node: OctreeNode) -> bool:
 	var point_bytes = node.octree_data.point_bytes
 	var byte_pos: int
 	var pos_scale: Vector3 = node.octree_data.scale
-	var pos_offset: Vector3 = node.octree_data.offset - node.center_offset
+	var pos_offset: Vector3 = -node.center_offset
 	var x = 0.0
 	var y = 0.0
 	var z = 0.0

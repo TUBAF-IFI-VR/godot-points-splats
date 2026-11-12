@@ -36,7 +36,7 @@ var point_size: float = 15.0:
 			octree_data.quad_material.set_shader_parameter("point_size", value)
 
 ## Visiblity range in meters for the top level nodes (below the root) to become visible.
-@export_range(1.0, 100)
+@export_range(1.0, 500)
 var initial_visibility_range: float = 100.0:
 	set(value):
 		initial_visibility_range = value
@@ -58,6 +58,12 @@ var adaptive_point_size: bool = true:
 		adaptive_point_size = value
 		if octree_data:
 			octree_data.quad_material.set_shader_parameter("adaptive_point_size", value)
+
+## If enabled, the root [OctreeNode] will be centered at the position of the [Octree] by reversing
+## the center position of the related AABB. Changing this option will only be updated when a new
+## dataset is loaded.
+@export
+var center_at_origin: bool = true
 
 ## If enabled, additional objects such as octree cell boundaries will be displayed.
 @export
@@ -99,12 +105,10 @@ var loaded_point_count: int:
 
 
 func _init() -> void:
-	pass
-
+	_loading_mutex = Mutex.new()
 
 func _ready() -> void:
 	pass
-
 
 ## Destroy the octree and free allocated ressources.
 func _exit_tree() -> void:
@@ -112,6 +116,9 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	if octree_data == null:
+		return
+	
 	octree_data.visual_scale = self.scale
 	
 	var viewport := get_viewport()
@@ -164,12 +171,17 @@ func load_octree() -> void:
 
 	# Create a root node and use the Potree naming scheme.
 	root = OctreeNode.new("r", aabb, octree_data)
+	
+	# We apply the position offset to the [Octree] instance
+	# Point data is centered around the bounding box center
+	if not center_at_origin:
+		self.position = octree_data.offset + octree_data.aabb_center
+		
 	data_loader.load_hierarchy(root)
 	data_loader.load_pointdata(root)
 	root.create_multimesh()
 
 	add_child(root)
-	#position = -aabb.get_center()
 
 	# Only load deeper nodes if not in editor mode
 	if Engine.is_editor_hint():
@@ -181,7 +193,6 @@ func load_octree() -> void:
 		_loading_thread_count = min(max_threads, _loading_thread_count)
 
 	# Prepare the allowed number of loading threads.
-	_loading_mutex = Mutex.new()
 	for i in _loading_thread_count:
 		var t = Thread.new()
 		_loading_stopped = false
@@ -192,10 +203,12 @@ func load_octree() -> void:
 ## Free and remove the current octree nodes
 func free_octree() -> void:
 	# Stop the loading process
+	root.set_process(false)
 	_loading_stopped = true
 	_loading_mutex.lock()
 	loading_queue.clear()
 	_loading_mutex.unlock()
+
 	for t in _loading_threads:
 		if t.is_started():
 			t.wait_to_finish()

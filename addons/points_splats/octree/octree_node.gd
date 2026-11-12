@@ -24,6 +24,9 @@ const visibility_range_scale: float = 2.0
 ## Shared shader material to use for the bounding boxes.
 static var bbox_material = preload("../materials/octree_box.tres")
 
+## Shared shader material to use for the bounding boxes of unloaded nodes.
+static var bbox_unloaded_material = preload("../materials/octree_box_unloaded.tres")
+
 ## All instances use the same default quad mesh as primitive.
 static var quad_mesh: QuadMesh = null
 
@@ -79,6 +82,9 @@ var notifier: VisibleOnScreenNotifier3D = null
 ## Additional visual node to display the bounding box if requested.
 var bbox: MeshInstance3D = null
 
+## Visual debug node representing an octree node's center.
+#var center_sphere: MeshInstance3D = null
+
 ## Margin used to blend different LOD levels.
 var visibility_margin: float = 1.0
 
@@ -120,7 +126,7 @@ static func _static_init() -> void:
 	# Also prepare a general bounding box mesh
 	bbox_mesh = BoxMesh.new()
 	bbox_mesh.size = Vector3(1, 1, 1)
-	bbox_mesh.material = bbox_material
+	bbox_mesh.material = bbox_unloaded_material
 	
 
 ## Initialize node properties and load a new HRC file if necessary.
@@ -129,10 +135,12 @@ func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 	self.path = p_octree_data.data_dir + p_id
 
 	self.id = p_id
-	self.aabb = p_aabb
-	self.center = aabb.get_center()
-	self._aabb_radius = aabb.size.length() * 0.5
 	self.depth = p_id.length() - 1
+	self.aabb = p_aabb
+	if self.depth == 0:
+		self.aabb.position -= p_octree_data.aabb_center
+	self.center = self.aabb.get_center()
+	self._aabb_radius = p_aabb.size.length() * 0.5
 	
 	self._data_mutex = Mutex.new()
 
@@ -140,7 +148,6 @@ func _init(p_id: String, p_aabb: AABB, p_octree_data: OctreeData) -> void:
 ## Setup the node when entering the scene tree.
 func _ready() -> void:
 	_create_bbox()
-	center = to_global(aabb.get_center())
 
 	octree_data.visibility_range_changed.connect(_on_visibility_range_value_changed)
 	octree_data.projection_size_threshold_changed.connect(_on_projection_size_value_changed)
@@ -162,6 +169,7 @@ func _process(delta: float) -> void:
 
 	if octree_data.show_debug_objects != bbox.visible:
 		bbox.visible = octree_data.show_debug_objects
+		#center_sphere.visible = octree_data.show_debug_objects
 
 	# Load only the visible children
 	if loading_queue.size() > 0 and _last_visibility_check >= seconds_next_visibility_check:
@@ -254,6 +262,10 @@ func create_multimesh() -> void:
 	colors.clear()
 	intensities.clear()
 	_data_mutex.unlock()
+	
+	# Finally update the bounding box color
+	if bbox:
+		call_deferred("_on_loading_finished")
 
 
 ## Create a new bounding box mesh and scale it to the current nodes AABB
@@ -262,19 +274,30 @@ func _create_bbox():
 	bbox.position = aabb.position + aabb.size*0.5
 	bbox.scale = aabb.size
 	bbox.mesh = bbox_mesh
-	bbox.visibility_range_end = 10.0
 	bbox.visible = octree_data.show_debug_objects
 	add_child(bbox)
 	
-	var test = MeshInstance3D.new()
-	test.mesh = SphereMesh.new()
-	var scalef = 1.0/(depth+2.0)
-	test.scale = Vector3(scalef,scalef,scalef)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0,0.7/(depth+1.0),0.6)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	test.material_override = mat
-	add_child(test)
+	# Optional: debug rendering of a colored sphere at the node's center
+	#var scalef = min(aabb.size.x * 0.1, 0.4)
+	#var mat = StandardMaterial3D.new()
+	#mat.albedo_color = Color(0,1.8/(depth+2.0),0.6)
+	#mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	#center_sphere = MeshInstance3D.new()
+	#center_sphere.mesh = SphereMesh.new()
+	#center_sphere.scale = Vector3(scalef,scalef,scalef)
+	#center_sphere.material_override = mat
+	#center_sphere.visible = octree_data.show_debug_objects
+	#add_child(center_sphere)
+	
+	# The root will always be displayed as loaded
+	if self.depth == 0:
+		bbox.material_override = bbox_material
+	# For an improved overview of large scenes, root and depth-1 nodes will
+	# always show their bounding boxes. Only deeper nodes depend on the viewer's
+	# position.
+	if self.depth >= 2:
+		bbox.visibility_range_end = 10.0
+		#center_sphere.visibility_range_end = 10.0
 
 
 ## Apply a new visibility range value to all visual representations of this node.
@@ -282,10 +305,6 @@ func _apply_visibility_range(instance: GeometryInstance3D, level: int) -> void:
 	var visibility_range_end = _get_range_end_from_level(level)
 	instance.visibility_range_end = visibility_range_end
 	instance.visibility_range_end_margin = visibility_margin
-	if not bbox:
-		return
-	bbox.visibility_range_end = visibility_range_end
-	bbox.visibility_range_end_margin = visibility_margin
 
 
 ## Determine the visiblity range depending on the LOD level (octree depth)
@@ -294,6 +313,11 @@ func _get_range_end_from_level(level: int) -> float:
 		return 0.0
 	return octree_data.initial_visibility_range / \
 			pow(visibility_range_scale, level - 1)
+
+
+## Called after the data for this node has been loaded.
+func _on_loading_finished() -> void:
+	bbox.material_override = bbox_material
 
 
 ## React to changes of the visiblity range, for example by UI inputs.
@@ -309,7 +333,7 @@ func _on_projection_size_value_changed(_value: float) -> void:
 
 ## Check if the calculated screen converage is above or equal to the defined threshold.
 func _is_important_enough_to_load() -> bool:
-	var distance: float = octree_data._camera_pos.distance_to(center)
+	var distance: float = octree_data._camera_pos.distance_to(to_global(center))
 	var projected_size: float = _aabb_radius / (octree_data._camera_fov_tan * distance)
 
 	return projected_size >= _projection_size_threshold

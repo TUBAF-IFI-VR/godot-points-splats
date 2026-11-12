@@ -29,9 +29,9 @@ static func analyze_hrc(hrc_path: String) -> Array:
 
 			# Read node data: 1 byte mask and 4 byte point count
 			var mask = file.get_8()
-			var num_points = file.get_32()
+			var point_count = file.get_32()
 
-			results.append({ 'name': current, 'points': num_points, 'mask': mask })
+			results.append({ 'name': current, 'points': point_count, 'mask': mask })
 
 			# Check node mask for existing children
 			for i in range(8):
@@ -163,6 +163,8 @@ func load_attributes(metadata: Dictionary, octree_data: OctreeData) -> bool:
 		metadata["boundingBox"]["uy"],
 	)
 	octree_data.aabb = OctreeLoader.get_valid_aabb(bb_min, bb_max)
+	#octree_data.aabb.position = -octree_data.aabb.size*0.5
+	octree_data.aabb_center = octree_data.aabb.get_center()
 
 	bb_min = Vector3(
 		metadata["tightBoundingBox"]["lx"],
@@ -175,6 +177,7 @@ func load_attributes(metadata: Dictionary, octree_data: OctreeData) -> bool:
 		metadata["tightBoundingBox"]["uy"],
 	)
 	octree_data.aabb_tight = OctreeLoader.get_valid_aabb(bb_min, bb_max)
+	#octree_data.aabb_tight.position = -octree_data.aabb.size*0.5
 
 	# TODO: check for errors
 
@@ -238,8 +241,9 @@ func load_hierarchy(node: OctreeNode) -> bool:
 			var point_count = buffer.decode_u32(buffer_offset+1)
 			buffer_offset += 5
 
-			var base_aabb = current.aabb
-			base_aabb.size *= 0.5
+			var child_aabb = current.aabb
+			child_aabb.size *= 0.5
+			child_aabb.position = -child_aabb.size * 0.5
 			hrc_points += point_count
 
 			# Check the node mask and spawn necessary subnodes as children
@@ -247,21 +251,17 @@ func load_hierarchy(node: OctreeNode) -> bool:
 				if node_mask & (1 << i):
 					var child_index = current.id + str(i)
 
-					var child_aabb = base_aabb
-
 					# Determine the correct octant
 					var y = 1 if i & 1 else -1
 					var z = 1 if i & 2 else -1
 					var x = 1 if i & 4 else -1
 
 					# Spawn the new child node and adjust its position
-					child_aabb.position = Vector3(0, 0, 0) #+= base_aabb.size*Vector3(x,y,z)
 					var child: OctreeNode = OctreeNode.new(
 						child_index,
 						child_aabb,
 						node.octree_data,
 					)
-					#child.depth = current.depth+1
 					child.path = current.path.get_base_dir().path_join(child_index)
 
 					if current.depth + 1 == step_size * step:
@@ -277,7 +277,8 @@ func load_hierarchy(node: OctreeNode) -> bool:
 					if current.depth < step_size * step:
 						next_nodes.push_back(child)
 
-					child.position = base_aabb.size * Vector3(x, y, z) * 0.5
+					child.position = child_aabb.size * Vector3(x, y, z) * 0.5
+					child.center_offset = current.center_offset + child.position
 					current._data_mutex.lock()
 					current.children[i] = child
 					current.loading_queue.push_back(child)

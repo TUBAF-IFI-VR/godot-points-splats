@@ -139,7 +139,8 @@ func load_metadata(filename: String) -> OctreeData:
 
 	# TODO: Check point cloud extends
 	octree_data.aabb = aabb
-	octree_data.aabb_tight = octree_data.aabb
+	octree_data.aabb_tight = aabb
+	octree_data.aabb_center = aabb.get_center()
 	
 	# Store additional file format information
 	octree_data.format["binary"] = binary
@@ -664,7 +665,7 @@ func _load_binary_simple(node: OctreeNode, file: FileAccess, properties: Diction
 	var c: Color
 	
 	# Reduce dictionary access during loop
-	var position_offset = node.octree_data.offset
+	var position_offset = -node.octree_data.aabb_center
 	var has_normal: bool = node.octree_data.has_attribute["normal"]
 	var has_color: bool = node.octree_data.has_attribute["color"]
 	var tx = properties["x"]["type"]
@@ -858,7 +859,7 @@ func _load_ascii(node: OctreeNode, file: FileAccess, properties: Dictionary) -> 
 	var c: Color
 	
 	# Reduce dictionary access during loop
-	var position_offset = node.octree_data.offset
+	var position_offset = -node.octree_data.aabb_center
 	var has_normal: bool = node.octree_data.has_attribute["normal"]
 	var has_color: bool = node.octree_data.has_attribute["color"]
 	var ox = properties["x"]["offset"]
