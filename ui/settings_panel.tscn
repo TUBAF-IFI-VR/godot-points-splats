@@ -76,6 +76,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 2.0
+max_value = 500.0
 value = 20.0
 
 [node name="Label" type="Label" parent="VBoxContainer/HBoxVisibilityRange" unique_id=1262975387]
